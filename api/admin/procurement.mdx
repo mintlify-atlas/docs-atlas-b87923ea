@@ -15,6 +15,85 @@ The procurement layer provides intelligent routing for x402 HTTP payments with:
 
 ---
 
+## Runtime Spend Limit
+
+Session-level guardrail to cap total x402 spending using Pinion runtime.
+
+### Get Spend Limit Status
+
+<RequestExample>
+```bash GET /x402/runtime-spend-limit
+curl -X GET https://api.example.com/x402/runtime-spend-limit
+```
+</RequestExample>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "status": {
+    "active": true,
+    "maxUsdc": "1.00",
+    "spentUsdc": "0.15",
+    "remainingUsdc": "0.85"
+  }
+}
+```
+</ResponseExample>
+
+### Set Spend Limit
+
+<Note>Requires admin authentication via `x-admin-key` header.</Note>
+
+<RequestExample>
+```bash POST /x402/runtime-spend-limit
+curl -X POST https://api.example.com/x402/runtime-spend-limit \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: your-admin-key" \
+  -d '{
+    "action": "set",
+    "maxUsdc": "2.00"
+  }'
+```
+</RequestExample>
+
+<ParamField body="action" type="string" required>
+  Action to perform: `set`, `clear`, or `status`
+</ParamField>
+
+<ParamField body="maxUsdc" type="string">
+  Maximum USDC spending limit (required for `action: "set"`)
+</ParamField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "status": {
+    "active": true,
+    "maxUsdc": "2.00",
+    "spentUsdc": "0.15",
+    "remainingUsdc": "1.85"
+  }
+}
+```
+</ResponseExample>
+
+### Clear Spend Limit
+
+<RequestExample>
+```bash POST /x402/runtime-spend-limit (clear)
+curl -X POST https://api.example.com/x402/runtime-spend-limit \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: your-admin-key" \
+  -d '{
+    "action": "clear"
+  }'
+```
+</RequestExample>
+
+---
+
 ## Rank Candidates
 
 <RequestExample>
