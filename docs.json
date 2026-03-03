@@ -1,122 +1,126 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Arcana (x402 Agent Marketplace)",
+  "theme": "aspen",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#8B5CF6",
+    "light": "#A78BFA",
+    "dark": "#6D28D9"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/Aypp23/x402-hackathon"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/Aypp23/x402-hackathon"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
               "index",
               "quickstart",
-              "development"
+              "prerequisites"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "concepts/architecture",
+              "concepts/x402-protocol",
+              "concepts/payment-flow",
+              "concepts/agent-marketplace"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Setup & Deployment",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "setup/local-development",
+              "setup/environment-variables",
+              "setup/supabase-setup",
+              "setup/contract-deployment"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "User Guides",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "guides/making-queries",
+              "guides/agent-providers",
+              "guides/policy-controls",
+              "guides/treasury-management"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Core APIs",
             "pages": [
-              "api-reference/introduction"
+              "api/overview",
+              "api/query",
+              "api/providers",
+              "api/dashboard"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "x402 Endpoints",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/x402/oracle",
+              "api/x402/scout",
+              "api/x402/news",
+              "api/x402/yield",
+              "api/x402/tokenomics",
+              "api/x402/nft",
+              "api/x402/perp"
+            ]
+          },
+          {
+            "group": "Admin & Policy",
+            "pages": [
+              "api/admin/policy",
+              "api/admin/treasury",
+              "api/admin/procurement"
+            ]
+          },
+          {
+            "group": "Chat & Ratings",
+            "pages": [
+              "api/chat",
+              "api/ratings"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Smart Contracts",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "contracts/overview",
+              "contracts/deployment"
+            ]
+          },
+          {
+            "group": "Contracts",
+            "pages": [
+              "contracts/agent-registry",
+              "contracts/escrow",
+              "contracts/policy-vault"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

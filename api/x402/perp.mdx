@@ -1,0 +1,294 @@
+---
+title: 'Perp Stats Agent'
+description: 'Perpetual futures market data from Hyperliquid, dYdX, Paradex, and more'
+---
+
+The Perp Stats Agent aggregates perpetual futures data from 7+ decentralized exchanges.
+
+## Pricing
+
+Each request costs **$0.02 USD** (paid via x402 on Base Sepolia testnet).
+
+---
+
+## Get Markets
+
+Retrieve perpetual markets data from all supported exchanges.
+
+```bash GET /api/x402/perp/markets
+curl https://api.arcana.markets/api/x402/perp/markets \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request succeeded
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  Array of perpetual markets
+  
+  <ResponseField name="symbol" type="string">
+    Market symbol (e.g., "BTC-USD-PERP", "ETH-USD")
+  </ResponseField>
+  
+  <ResponseField name="exchange" type="string">
+    Exchange name (e.g., "Hyperliquid", "dYdX", "Paradex")
+  </ResponseField>
+  
+  <ResponseField name="markPrice" type="number">
+    Current mark price
+  </ResponseField>
+  
+  <ResponseField name="indexPrice" type="number">
+    Underlying index price
+  </ResponseField>
+  
+  <ResponseField name="fundingRate" type="number">
+    Current funding rate (annualized)
+  </ResponseField>
+  
+  <ResponseField name="openInterestUsd" type="number">
+    Open interest in USD
+  </ResponseField>
+  
+  <ResponseField name="volume24h" type="number">
+    24-hour trading volume in USD
+  </ResponseField>
+  
+  <ResponseField name="priceChange24h" type="number">
+    24-hour price change percentage
+  </ResponseField>
+  
+  <ResponseField name="lastUpdated" type="string">
+    ISO 8601 timestamp
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="meta" type="object">
+  <ResponseField name="count" type="number">
+    Total number of markets
+  </ResponseField>
+  
+  <ResponseField name="sources" type="string[]">
+    List of exchanges included
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="payment" type="object">
+  x402 payment receipt
+</ResponseField>
+
+<CodeGroup>
+
+```json Response Example
+{
+  "success": true,
+  "data": [
+    {
+      "symbol": "BTC-USD-PERP",
+      "exchange": "Hyperliquid",
+      "markPrice": 98247.50,
+      "indexPrice": 98245.20,
+      "fundingRate": 0.0123,
+      "openInterestUsd": 1847000000,
+      "volume24h": 3420000000,
+      "priceChange24h": 2.34,
+      "lastUpdated": "2026-03-03T12:00:00.000Z"
+    },
+    {
+      "symbol": "ETH-USD",
+      "exchange": "dYdX",
+      "markPrice": 3842.15,
+      "indexPrice": 3841.80,
+      "fundingRate": 0.0087,
+      "openInterestUsd": 724000000,
+      "volume24h": 1280000000,
+      "priceChange24h": -0.87,
+      "lastUpdated": "2026-03-03T12:00:00.000Z"
+    },
+    {
+      "symbol": "SOL-PERP",
+      "exchange": "Paradex",
+      "markPrice": 142.35,
+      "indexPrice": 142.30,
+      "fundingRate": 0.0156,
+      "openInterestUsd": 187000000,
+      "volume24h": 324000000,
+      "priceChange24h": 4.12,
+      "lastUpdated": "2026-03-03T12:00:00.000Z"
+    }
+  ],
+  "meta": {
+    "count": 247,
+    "sources": ["Hyperliquid", "dYdX", "Paradex", "Lighter", "Pacifica", "EdgeX"]
+  },
+  "payment": { /* x402 receipt */ }
+}
+```
+
+</CodeGroup>
+
+---
+
+## Get Global Stats
+
+Retrieve aggregated statistics across all perpetual exchanges.
+
+```bash GET /api/x402/perp/global
+curl https://api.arcana.markets/api/x402/perp/global \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request succeeded
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  <ResponseField name="totalVolume24h" type="number">
+    Combined 24h volume across all exchanges (USD)
+  </ResponseField>
+  
+  <ResponseField name="totalOpenInterestUsd" type="number">
+    Combined open interest across all markets (USD)
+  </ResponseField>
+  
+  <ResponseField name="activeExchanges" type="string[]">
+    List of active exchanges
+  </ResponseField>
+  
+  <ResponseField name="marketCount" type="number">
+    Total number of markets tracked
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="payment" type="object">
+  x402 payment receipt
+</ResponseField>
+
+<CodeGroup>
+
+```json Response Example
+{
+  "success": true,
+  "data": {
+    "totalVolume24h": 8947000000,
+    "totalOpenInterestUsd": 4182000000,
+    "activeExchanges": [
+      "Hyperliquid",
+      "dYdX",
+      "Paradex",
+      "Lighter",
+      "Pacifica",
+      "EdgeX"
+    ],
+    "marketCount": 247
+  },
+  "payment": { /* x402 receipt */ }
+}
+```
+
+</CodeGroup>
+
+---
+
+## Supported Exchanges
+
+The Perp Stats Agent aggregates data from:
+
+### Hyperliquid
+- **Status**: ✅ Full Support
+- **Markets**: 50+ perpetual markets
+- **Chains**: Hyperliquid L1
+- **Data**: Mark price, index price, funding, OI, volume
+
+### dYdX
+- **Status**: ✅ Full Support
+- **Markets**: 40+ perpetual markets
+- **Chains**: dYdX Chain
+- **Data**: Complete market statistics
+
+### Paradex
+- **Status**: ✅ Full Support
+- **Markets**: 30+ perpetual markets
+- **Chains**: Starknet
+- **Data**: Real-time pricing and volume
+
+### Lighter
+- **Status**: ✅ Full Support
+- **Markets**: 20+ markets
+- **Chains**: Arbitrum
+- **Data**: Orderbook-based perpetuals
+
+### Pacifica
+- **Status**: ✅ Full Support
+- **Markets**: 15+ markets
+- **Chains**: Movement
+- **Data**: Mark price, funding, volume
+
+### EdgeX
+- **Status**: ⚠️ Partial Support
+- **Markets**: Metadata only
+- **Chains**: Edge
+- **Note**: Real-time pricing limited
+
+### Vertex Protocol
+- **Status**: ❌ Geo-blocked
+- **Note**: API blocked in many regions
+
+---
+
+## Data Caching
+
+Market data is cached for 30 seconds to:
+- Reduce API load on exchanges
+- Improve response times
+- Ensure data consistency across requests
+
+<Note>
+Fresh data is fetched automatically when cache expires.
+</Note>
+
+---
+
+## Funding Rate Explained
+
+The `fundingRate` is shown as an annualized percentage:
+
+- **Positive**: Longs pay shorts (market is bullish)
+- **Negative**: Shorts pay longs (market is bearish)
+- **Typical Range**: -10% to +10% annually
+- **High Funding**: >5% suggests strong directional bias
+
+### Example
+A funding rate of `0.0123` means:
+- 1.23% annual rate
+- ~0.003% per 8-hour period
+- Longs pay 0.003% of position size to shorts every 8 hours
+
+---
+
+## x402 Payment Flow
+
+All Perp Stats endpoints require payment via x402:
+
+- **Price**: $0.02 per request (2x oracle price due to multi-exchange aggregation)
+- **Network**: Base Sepolia (eip155:84532)
+- **Seller Address**: `0x89651811043ba5a04d44b17462d07a0e3cf0565e`
+
+---
+
+## Use Cases
+
+- **Arbitrage**: Compare prices across exchanges
+- **Funding Arbitrage**: Find high funding rate opportunities
+- **Volume Analysis**: Track market liquidity
+- **Open Interest**: Monitor market positioning
+- **Market Monitoring**: Track perpetual futures markets in real-time
+
+<Note>
+Perp Stats aggregates data from decentralized perpetual exchanges only. Centralized exchanges (Binance, OKX) are not included.
+</Note>

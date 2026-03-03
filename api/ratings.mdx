@@ -1,0 +1,402 @@
+---
+title: 'Ratings API'
+description: 'Rate AI responses and track agent performance metrics'
+icon: 'star'
+---
+
+## Overview
+
+The ratings system allows users to provide feedback on AI-generated responses via thumbs up/down ratings. Ratings are tied to wallet addresses and can be tracked per message or aggregated per agent.
+
+---
+
+## Rate Message
+
+<RequestExample>
+```bash POST /ratings
+curl -X POST https://api.example.com/ratings \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messageId": "msg-1234567890",
+    "walletAddress": "0x1234...",
+    "isPositive": true,
+    "agentId": "oracle"
+  }'
+```
+</RequestExample>
+
+**Request Body**
+
+<ParamField body="messageId" type="string" required>
+  Unique message identifier to rate
+</ParamField>
+
+<ParamField body="walletAddress" type="string" required>
+  Wallet address of the user providing the rating
+</ParamField>
+
+<ParamField body="isPositive" type="boolean" required>
+  `true` for thumbs up, `false` for thumbs down
+</ParamField>
+
+<ParamField body="agentId" type="string">
+  Optional agent identifier (oracle, scout, news, yield, tokenomics, nft, perp)
+</ParamField>
+
+<ResponseExample>
+```json
+{
+  "success": true
+}
+```
+</ResponseExample>
+
+<Note>
+  Users can update their rating by calling this endpoint again with the same `messageId` and `walletAddress`.
+</Note>
+
+---
+
+## Get Message Rating
+
+<RequestExample>
+```bash GET /ratings/:messageId
+curl -X GET "https://api.example.com/ratings/msg-1234567890?wallet=0x1234..."
+```
+</RequestExample>
+
+**Path Parameters**
+
+<ParamField path="messageId" type="string" required>
+  Message ID to check rating for
+</ParamField>
+
+**Query Parameters**
+
+<ParamField query="wallet" type="string" required>
+  Wallet address to check rating from
+</ParamField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "rating": true
+}
+```
+</ResponseExample>
+
+**Response Fields**
+
+<ResponseField name="success" type="boolean" required>
+  Whether the request succeeded
+</ResponseField>
+
+<ResponseField name="rating" type="boolean | null" required>
+  - `true`: User gave thumbs up
+  - `false`: User gave thumbs down
+  - `null`: User has not rated this message
+</ResponseField>
+
+---
+
+## Get Agent Rating
+
+<RequestExample>
+```bash GET /agent/rating
+curl -X GET https://api.example.com/agent/rating
+```
+</RequestExample>
+
+Returns the aggregate rating for all agents (or a specific agent if filtered by database query).
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "rating": 4.7,
+  "totalRatings": 1250
+}
+```
+</ResponseExample>
+
+**Response Fields**
+
+<ResponseField name="success" type="boolean" required>
+  Whether the request succeeded
+</ResponseField>
+
+<ResponseField name="rating" type="number" required>
+  Average rating score (0.0 to 5.0 scale)
+</ResponseField>
+
+<ResponseField name="totalRatings" type="number" required>
+  Total number of ratings received
+</ResponseField>
+
+---
+
+## Get Average Response Time
+
+<RequestExample>
+```bash GET /agent/response-time
+curl -X GET https://api.example.com/agent/response-time
+```
+</RequestExample>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "avgResponseTimeMs": 1450
+}
+```
+</ResponseExample>
+
+**Response Fields**
+
+<ResponseField name="avgResponseTimeMs" type="number" required>
+  Average response time in milliseconds across all queries
+</ResponseField>
+
+---
+
+## Get Usage Count
+
+<RequestExample>
+```bash GET /agent/usage-count
+curl -X GET https://api.example.com/agent/usage-count
+```
+</RequestExample>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "usageCount": 5432
+}
+```
+</ResponseExample>
+
+**Response Fields**
+
+<ResponseField name="usageCount" type="number" required>
+  Total number of queries processed
+</ResponseField>
+
+---
+
+## Get Agent Stats (Dashboard)
+
+<RequestExample>
+```bash GET /dashboard/stats
+curl -X GET "https://api.example.com/dashboard/stats?agentId=oracle"
+```
+</RequestExample>
+
+**Query Parameters**
+
+<ParamField query="agentId" type="string">
+  Optional agent ID to filter stats. Omit for aggregate stats.
+</ParamField>
+
+<ResponseExample>
+```json Agent-Specific Stats
+{
+  "agentId": "oracle",
+  "agentName": "Price Oracle Agent",
+  "wallet": "0x5678...",
+  "treasury": "45.32",
+  "tasksCompleted": 1234,
+  "rating": 4.8,
+  "totalRatings": 856,
+  "avgResponseTime": "0.8s",
+  "isFrozen": false
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Aggregate Stats (no agentId)
+{
+  "treasury": "150.50",
+  "tasksCompleted": 5432,
+  "isFrozen": false
+}
+```
+</ResponseExample>
+
+**Response Fields (Agent-Specific)**
+
+<ResponseField name="agentId" type="string">
+  Agent identifier
+</ResponseField>
+
+<ResponseField name="agentName" type="string">
+  Human-readable agent name
+</ResponseField>
+
+<ResponseField name="wallet" type="string">
+  Agent's payment wallet address
+</ResponseField>
+
+<ResponseField name="treasury" type="string">
+  Current USDC balance in agent's wallet
+</ResponseField>
+
+<ResponseField name="tasksCompleted" type="number">
+  Total successful queries processed
+</ResponseField>
+
+<ResponseField name="rating" type="number">
+  Average user rating (0.0-5.0)
+</ResponseField>
+
+<ResponseField name="totalRatings" type="number">
+  Number of ratings received
+</ResponseField>
+
+<ResponseField name="avgResponseTime" type="string">
+  Average response time (formatted as "1.5s")
+</ResponseField>
+
+<ResponseField name="isFrozen" type="boolean">
+  Whether agent is frozen by policy
+</ResponseField>
+
+---
+
+## Error Responses
+
+<ResponseExample>
+```json 400 Bad Request
+{
+  "success": false,
+  "error": "Missing required fields"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json 400 Bad Request (Invalid Agent)
+{
+  "error": "Unsupported agentId: invalid-agent"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json 500 Internal Server Error
+{
+  "error": "Database query failed"
+}
+```
+</ResponseExample>
+
+---
+
+## Integration Example
+
+```typescript
+// Submit a rating
+const rateMessage = async (messageId: string, walletAddress: string, isPositive: boolean) => {
+  const response = await fetch('https://api.example.com/ratings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messageId,
+      walletAddress,
+      isPositive,
+      agentId: 'oracle',
+    }),
+  });
+  return response.json();
+};
+
+// Check if user has already rated a message
+const getUserRating = async (messageId: string, walletAddress: string) => {
+  const response = await fetch(
+    `https://api.example.com/ratings/${messageId}?wallet=${walletAddress}`
+  );
+  const { rating } = await response.json();
+  return rating; // true, false, or null
+};
+
+// Display agent stats in dashboard
+const getAgentStats = async (agentId: string) => {
+  const response = await fetch(
+    `https://api.example.com/dashboard/stats?agentId=${agentId}`
+  );
+  return response.json();
+};
+
+// Example: Rating component
+const RatingButton = ({ messageId, walletAddress }: Props) => {
+  const [userRating, setUserRating] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    getUserRating(messageId, walletAddress).then(setUserRating);
+  }, [messageId, walletAddress]);
+
+  const handleRate = async (isPositive: boolean) => {
+    await rateMessage(messageId, walletAddress, isPositive);
+    setUserRating(isPositive);
+  };
+
+  return (
+    <div>
+      <button
+        onClick={() => handleRate(true)}
+        className={userRating === true ? 'active' : ''}
+      >
+        👍
+      </button>
+      <button
+        onClick={() => handleRate(false)}
+        className={userRating === false ? 'active' : ''}
+      >
+        👎
+      </button>
+    </div>
+  );
+};
+```
+
+---
+
+## Database Schema
+
+Ratings are stored in Supabase:
+
+**message_ratings table:**
+- `message_id` (text)
+- `wallet_address` (text)
+- `is_positive` (boolean)
+- `agent_id` (text, nullable)
+- `created_at` (timestamp)
+- Composite primary key: `(message_id, wallet_address)`
+
+**query_performance table** (for response time tracking):
+- `id` (uuid, primary key)
+- `response_time_ms` (integer)
+- `agent_id` (text, nullable)
+- `tx_hash` (text, nullable)
+- `created_at` (timestamp)
+
+<Note>
+  Ratings are immutable once submitted. To change a rating, the same endpoint is called again with updated `isPositive` value.
+</Note>
+
+---
+
+## Rate Limiting
+
+Ratings endpoints use the general rate limiter:
+
+- **100 requests per 15-minute window per IP**
+- Browser preflight (OPTIONS) requests are exempt
+- GET endpoints (stats, response time, usage count) are exempt
+
+<Warning>
+  Excessive rating submissions from the same wallet may be flagged as spam in future updates.
+</Warning>

@@ -1,0 +1,218 @@
+---
+title: 'Price Oracle Agent'
+description: 'Real-time cryptocurrency price data powered by CoinGecko'
+---
+
+The Price Oracle Agent provides real-time cryptocurrency price data from CoinGecko's API with support for 500+ tokens.
+
+## Pricing
+
+Each request costs **$0.01 USD** (paid via x402 on Base Sepolia testnet).
+
+---
+
+## Get Single Price
+
+Retrieve current price data for a single cryptocurrency.
+
+<Note>
+Supports 500+ tokens including BTC, ETH, major altcoins, DeFi tokens, meme coins, and AI agents.
+</Note>
+
+```bash GET /api/x402/oracle/price
+curl https://api.arcana.markets/api/x402/oracle/price?symbol=BTC \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Query Parameters
+
+<ParamField query="symbol" type="string" default="BTC">
+  Token symbol (e.g., `BTC`, `ETH`, `SOL`, `ARB`)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request succeeded
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  <ResponseField name="symbol" type="string">
+    Token symbol in uppercase
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    Full token name
+  </ResponseField>
+  
+  <ResponseField name="price" type="number">
+    Current price in USD
+  </ResponseField>
+  
+  <ResponseField name="currency" type="string">
+    Price currency (always "USD")
+  </ResponseField>
+  
+  <ResponseField name="change24h" type="number">
+    24-hour price change percentage
+  </ResponseField>
+  
+  <ResponseField name="marketCap" type="number">
+    Market capitalization in USD
+  </ResponseField>
+  
+  <ResponseField name="volume24h" type="number">
+    24-hour trading volume in USD
+  </ResponseField>
+  
+  <ResponseField name="lastUpdated" type="string">
+    ISO 8601 timestamp of last update
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="payment" type="object">
+  <ResponseField name="amount" type="string">
+    Payment amount ("$0.01")
+  </ResponseField>
+  
+  <ResponseField name="network" type="string">
+    Payment network ("eip155:84532" for Base Sepolia)
+  </ResponseField>
+  
+  <ResponseField name="payTo" type="string">
+    Seller wallet address
+  </ResponseField>
+  
+  <ResponseField name="payer" type="string">
+    Buyer wallet address
+  </ResponseField>
+  
+  <ResponseField name="transaction" type="string">
+    Transaction hash
+  </ResponseField>
+</ResponseField>
+
+<CodeGroup>
+
+```json Response Example
+{
+  "success": true,
+  "data": {
+    "symbol": "BTC",
+    "name": "Bitcoin",
+    "price": 98247.50,
+    "currency": "USD",
+    "change24h": 2.34,
+    "marketCap": 1945832000000,
+    "volume24h": 42857000000,
+    "lastUpdated": "2026-03-03T10:30:00.000Z"
+  },
+  "payment": {
+    "amount": "$0.01",
+    "network": "eip155:84532",
+    "payTo": "0xbaFF2E0939f89b53d4caE023078746C2eeA6E2F7",
+    "payer": "0xYourWalletAddress",
+    "transaction": "0xTransactionHash"
+  }
+}
+```
+
+</CodeGroup>
+
+---
+
+## Get Batch Prices
+
+Retrieve prices for multiple cryptocurrencies in a single request.
+
+```bash POST /api/x402/oracle/prices
+curl -X POST https://api.arcana.markets/api/x402/oracle/prices \
+  -H "Authorization: Bearer YOUR_X402_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symbols": ["BTC", "ETH", "SOL", "ARB"]
+  }'
+```
+
+### Request Body
+
+<ParamField body="symbols" type="string[]" default="['BTC', 'ETH']">
+  Array of token symbols to fetch
+</ParamField>
+
+### Response
+
+Returns the same structure as single price, but with `data` as an array of price objects.
+
+<CodeGroup>
+
+```json Response Example
+{
+  "success": true,
+  "data": [
+    {
+      "symbol": "BTC",
+      "name": "Bitcoin",
+      "price": 98247.50,
+      "currency": "USD",
+      "change24h": 2.34,
+      "marketCap": 1945832000000,
+      "volume24h": 42857000000,
+      "lastUpdated": "2026-03-03T10:30:00.000Z"
+    },
+    {
+      "symbol": "ETH",
+      "name": "Ethereum",
+      "price": 3842.15,
+      "currency": "USD",
+      "change24h": -0.87,
+      "marketCap": 462184000000,
+      "volume24h": 18234000000,
+      "lastUpdated": "2026-03-03T10:30:00.000Z"
+    }
+  ],
+  "payment": {
+    "amount": "$0.01",
+    "network": "eip155:84532",
+    "payTo": "0xbaFF2E0939f89b53d4caE023078746C2eeA6E2F7",
+    "payer": "0xYourWalletAddress",
+    "transaction": "0xTransactionHash"
+  }
+}
+```
+
+</CodeGroup>
+
+---
+
+## x402 Payment Flow
+
+All Price Oracle endpoints require payment via Coinbase's x402 protocol:
+
+1. **Request** - Client sends request with x402 payment headers
+2. **Payment Verification** - Middleware verifies payment on Base Sepolia
+3. **Data Delivery** - CoinGecko data returned with payment receipt
+4. **Caching** - Prices cached for 30 seconds to reduce API load
+
+### Payment Details
+- **Price**: $0.01 per request
+- **Network**: Base Sepolia (eip155:84532)
+- **Seller Address**: `0xbaFF2E0939f89b53d4caE023078746C2eeA6E2F7`
+- **Payment Scheme**: Exact EVM (exact amount verification)
+
+---
+
+## Supported Tokens
+
+The Oracle supports 500+ tokens including:
+
+- **Top Market Cap**: BTC, ETH, USDT, XRP, BNB, SOL, ADA, DOGE, AVAX, DOT
+- **DeFi**: AAVE, UNI, LINK, CRV, MKR, SNX, COMP, SUSHI, BAL, YFI
+- **Layer 2**: ARB, OP, STRK, ZK, METIS, IMX, MATIC (POL)
+- **AI Agents**: TAO, FET, AGIX, VIRTUAL, AI16Z, AIXBT
+- **Meme Coins**: PEPE, SHIB, DOGE, FLOKI, BONK, WIF, POPCAT
+- **New Chains**: SUI, APT, SEI, INJ, TIA, HYPE, MON
+
+<Note>
+Use symbol or full name (case-insensitive): `btc`, `bitcoin`, `eth`, `ethereum` all work.
+</Note>

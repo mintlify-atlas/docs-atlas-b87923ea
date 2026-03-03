@@ -1,0 +1,275 @@
+---
+title: 'Chain Scout Agent'
+description: 'On-chain analytics, wallet analysis, gas prices, and DeFi protocol stats'
+---
+
+The Chain Scout Agent provides comprehensive on-chain analytics using Alchemy, Etherscan, and DeFiLlama APIs.
+
+## Pricing
+
+Each request costs **$0.01 USD** (paid via x402 on Base Sepolia testnet).
+
+---
+
+## Analyze Wallet
+
+Get comprehensive wallet analytics including portfolio value, token holdings, NFTs, and transaction history.
+
+```bash GET /api/x402/scout/analyze
+curl https://api.arcana.markets/api/x402/scout/analyze?address=0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Query Parameters
+
+<ParamField query="address" type="string" required>
+  Ethereum wallet address or ENS name
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request succeeded
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  <ResponseField name="address" type="string">
+    Normalized wallet address
+  </ResponseField>
+  
+  <ResponseField name="ensName" type="string">
+    ENS name (if available)
+  </ResponseField>
+  
+  <ResponseField name="walletAgeDays" type="number">
+    Days since first transaction
+  </ResponseField>
+  
+  <ResponseField name="isContract" type="boolean">
+    Whether address is a smart contract
+  </ResponseField>
+  
+  <ResponseField name="ethBalance" type="number">
+    ETH balance
+  </ResponseField>
+  
+  <ResponseField name="ethBalanceUsd" type="number">
+    Total portfolio value in USD
+  </ResponseField>
+  
+  <ResponseField name="portfolio" type="object">
+    Token holdings across all supported chains
+  </ResponseField>
+  
+  <ResponseField name="history" type="array">
+    Recent transactions (last 50)
+  </ResponseField>
+  
+  <ResponseField name="nftsWithFloorPrice" type="array">
+    NFT holdings with floor prices
+  </ResponseField>
+  
+  <ResponseField name="labels" type="string[]">
+    Wallet labels (e.g., "Whale", "High Activity")
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="payment" type="object">
+  x402 payment receipt
+</ResponseField>
+
+---
+
+## Get Gas Prices
+
+Retrieve current Ethereum gas prices for different transaction speeds.
+
+```bash GET /api/x402/scout/gas
+curl https://api.arcana.markets/api/x402/scout/gas \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Response
+
+<ResponseField name="data" type="object">
+  <ResponseField name="low" type="number">
+    Low priority gas price (Gwei) - 5-10 min confirmation
+  </ResponseField>
+  
+  <ResponseField name="average" type="number">
+    Average gas price (Gwei) - 1-3 min confirmation
+  </ResponseField>
+  
+  <ResponseField name="fast" type="number">
+    Fast gas price (Gwei) - ~15 sec confirmation
+  </ResponseField>
+  
+  <ResponseField name="baseFee" type="number">
+    Current EIP-1559 base fee (Gwei)
+  </ResponseField>
+</ResponseField>
+
+<CodeGroup>
+
+```json Response Example
+{
+  "success": true,
+  "data": {
+    "low": 8,
+    "average": 12,
+    "fast": 18,
+    "baseFee": 7.2
+  },
+  "payment": { /* x402 receipt */ }
+}
+```
+
+</CodeGroup>
+
+---
+
+## Estimate Transaction Cost
+
+Estimate gas cost for common transaction types.
+
+```bash GET /api/x402/scout/gas-estimate
+curl https://api.arcana.markets/api/x402/scout/gas-estimate?operation=swap_dex \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Query Parameters
+
+<ParamField query="operation" type="string" default="eth_transfer">
+  Transaction type:
+  - `eth_transfer` - Simple ETH transfer (21,000 gas)
+  - `erc20_transfer` - ERC20 token transfer (65,000 gas)
+  - `nft_transfer` - NFT transfer (85,000 gas)
+  - `swap_dex` - DEX swap (180,000 gas)
+  - `bridge` - Cross-chain bridge (150,000 gas)
+</ParamField>
+
+### Response
+
+<ResponseField name="data" type="object">
+  <ResponseField name="operation" type="string">
+    Operation type
+  </ResponseField>
+  
+  <ResponseField name="gasLimit" type="number">
+    Estimated gas limit
+  </ResponseField>
+  
+  <ResponseField name="gasPriceGwei" type="number">
+    Gas price used (fast tier)
+  </ResponseField>
+  
+  <ResponseField name="ethCost" type="number">
+    Cost in ETH
+  </ResponseField>
+  
+  <ResponseField name="usdCost" type="number">
+    Cost in USD
+  </ResponseField>
+  
+  <ResponseField name="formattedCost" type="string">
+    Human-readable cost string
+  </ResponseField>
+</ResponseField>
+
+---
+
+## Get DEX Volume Report
+
+Retrieve DEX volume data for a specific blockchain.
+
+```bash GET /api/x402/scout/dex
+curl https://api.arcana.markets/api/x402/scout/dex?chain=ethereum \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Query Parameters
+
+<ParamField query="chain" type="string" default="ethereum">
+  Blockchain name (e.g., `ethereum`, `arbitrum`, `base`, `optimism`, `polygon`)
+</ParamField>
+
+### Response
+
+<ResponseField name="data" type="object">
+  <ResponseField name="chain" type="string">
+    Chain name
+  </ResponseField>
+  
+  <ResponseField name="totalVolume24h" type="number">
+    Total 24h DEX volume (USD)
+  </ResponseField>
+  
+  <ResponseField name="topDexes" type="array">
+    Top 5 DEXs by volume with 24h change
+  </ResponseField>
+</ResponseField>
+
+---
+
+## Get Protocol Stats
+
+Retrieve TVL and fees for a specific DeFi protocol.
+
+```bash GET /api/x402/scout/protocol
+curl https://api.arcana.markets/api/x402/scout/protocol?protocol=uniswap \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Query Parameters
+
+<ParamField query="protocol" type="string" required>
+  Protocol name (e.g., `uniswap`, `aave`, `curve`, `lido`, `makerdao`)
+</ParamField>
+
+### Response
+
+Returns TVL, fees, revenue, and chain breakdown for the protocol.
+
+---
+
+## Get Bridge Activity
+
+Retrieve top cross-chain bridge volume and activity.
+
+```bash GET /api/x402/scout/bridges
+curl https://api.arcana.markets/api/x402/scout/bridges \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Response
+
+Returns top bridges by 24h volume with chain breakdown.
+
+---
+
+## Get Recent Hacks
+
+Retrieve recent DeFi exploits and hacks from DeFiLlama.
+
+```bash GET /api/x402/scout/hacks
+curl https://api.arcana.markets/api/x402/scout/hacks \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Response
+
+Returns list of recent security incidents with amounts lost and affected protocols.
+
+---
+
+## x402 Payment Flow
+
+All Chain Scout endpoints require payment via x402:
+
+- **Price**: $0.01 per request
+- **Network**: Base Sepolia (eip155:84532)
+- **Seller Address**: `0xf09bC01bEb00b142071b648c4826Ab48572aEea5`
+
+<Note>
+Wallet analysis queries data from Alchemy across Ethereum, Base, Arbitrum, Optimism, and Polygon.
+</Note>

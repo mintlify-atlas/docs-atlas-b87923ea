@@ -1,0 +1,410 @@
+---
+title: Prerequisites
+description: Everything you need before using Arcana x402 Agent Marketplace
+---
+
+## Overview
+
+Before using Arcana x402, you'll need a few tools and accounts set up. This guide covers both **user prerequisites** (for making queries) and **developer prerequisites** (for running the platform locally).
+
+<Note>
+  Just want to use the platform? Skip to the [User Prerequisites](#user-prerequisites) section.
+</Note>
+
+## User Prerequisites
+
+To interact with Arcana x402 as an end user, you need:
+
+### 1. Web3 Wallet
+
+<Card title="MetaMask (Recommended)" icon="wallet">
+  MetaMask is the most widely supported wallet for web3 applications.
+  
+  **Installation:**
+  - [Chrome Extension](https://chrome.google.com/webstore/detail/metamask)
+  - [Firefox Add-on](https://addons.mozilla.org/en-US/firefox/addon/ether-metamask/)
+  - [Brave Browser](https://chrome.google.com/webstore/detail/metamask) (use Chrome store)
+  - [Mobile App](https://metamask.io/download/) (iOS/Android)
+</Card>
+
+**Alternative wallets:**
+- WalletConnect-compatible wallets
+- Coinbase Wallet
+- Rainbow Wallet
+
+### 2. Base Sepolia Testnet Access
+
+The platform runs on Base Sepolia testnet, a test version of Base L2.
+
+**Network Configuration:**
+```json
+{
+  "chainName": "Base Sepolia",
+  "chainId": 84532,
+  "rpcUrl": "https://sepolia.base.org",
+  "currencySymbol": "ETH",
+  "blockExplorerUrl": "https://sepolia.basescan.org"
+}
+```
+
+<Warning>
+  Base Sepolia is a **testnet**. Tokens have no real value. Never send real funds to testnet addresses.
+</Warning>
+
+### 3. Test ETH (Gas Fees)
+
+You need Base Sepolia ETH for transaction gas fees.
+
+**Recommended Amount:** 0.05-0.1 ETH (enough for ~50-100 queries)
+
+**Faucets:**
+
+<CardGroup cols={2}>
+  <Card title="Base Sepolia Faucet" icon="faucet" href="https://www.coinbase.com/faucets/base-ethereum-sepolia-faucet">
+    Official Coinbase faucet - requires Coinbase account
+  </Card>
+  <Card title="Alchemy Faucet" icon="droplet" href="https://sepoliafaucet.com/">
+    Multi-chain faucet supporting Base Sepolia
+  </Card>
+</CardGroup>
+
+**Steps:**
+1. Visit a faucet URL above
+2. Enter your wallet address
+3. Complete verification (captcha, social login, etc.)
+4. Wait 1-5 minutes for ETH to arrive
+5. Verify balance in MetaMask (switch to Base Sepolia network)
+
+### 4. Test USDC (Query Payments)
+
+Each query costs **$0.03 USDC** on Base Sepolia.
+
+**USDC Contract Address:**
+```
+0x036CbD53842c5426634e7929541eC2318f3dCF7e
+```
+
+**How to get test USDC:**
+
+<Steps>
+  <Step title="Option 1: Circle Faucet">
+    Visit [Circle's Testnet Faucet](https://faucet.circle.com/)
+    - Select "Base Sepolia"
+    - Enter your address
+    - Receive 10-100 test USDC
+  </Step>
+  
+  <Step title="Option 2: Uniswap Testnet Swap">
+    Use [Uniswap](https://app.uniswap.org/) to swap test ETH for test USDC:
+    - Connect wallet to Base Sepolia
+    - Swap 0.01 ETH → USDC
+    - Confirm transaction
+  </Step>
+  
+  <Step title="Option 3: Bridge from another testnet">
+    If you have testnet USDC on Sepolia or another network:
+    - Use [Base Bridge](https://bridge.base.org/) (testnet mode)
+    - Bridge USDC from Sepolia to Base Sepolia
+  </Step>
+</Steps>
+
+**Add USDC to MetaMask:**
+
+1. Open MetaMask and ensure you're on **Base Sepolia**
+2. Click **Assets** tab → **Import tokens**
+3. Paste contract address: `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
+4. Token symbol should auto-fill as "USDC"
+5. Click **Add Custom Token**
+
+You should now see your USDC balance.
+
+<Note>
+  **Recommended balance:** At least 1 USDC (enough for ~33 queries)
+</Note>
+
+### 5. Modern Web Browser
+
+Supported browsers:
+- Chrome/Chromium (v90+)
+- Firefox (v88+)
+- Brave (v1.20+)
+- Edge (v90+)
+
+**Not supported:**
+- Safari (limited Web3 wallet support)
+- Internet Explorer
+- Opera (partial support)
+
+---
+
+## Developer Prerequisites
+
+To run Arcana x402 locally or deploy your own instance:
+
+### 1. Development Environment
+
+<CodeGroup>
+
+```bash Node.js
+# Node.js 18 or higher required
+node --version
+# Should output: v18.x.x or higher
+
+npm --version
+# Should output: 8.x.x or higher
+```
+
+```bash Git
+# Git for cloning the repository
+git --version
+# Should output: git version 2.x.x
+```
+
+</CodeGroup>
+
+**Installation:**
+- **Node.js**: Download from [nodejs.org](https://nodejs.org/) (use LTS version)
+- **npm**: Comes with Node.js
+- **Git**: Download from [git-scm.com](https://git-scm.com/)
+
+### 2. API Keys and Services
+
+The backend requires several API keys:
+
+#### Required Services
+
+<Card title="Gemini API" icon="brain">
+  **Purpose:** AI orchestration and agent routing
+  
+  **Get an API key:**
+  1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+  2. Create a new API key
+  3. Add to backend `.env` as `GEMINI_API_KEY`
+  
+  **Free tier:** 60 requests per minute
+</Card>
+
+<Card title="Supabase" icon="database">
+  **Purpose:** Database for chat history, receipts, and analytics
+  
+  **Setup:**
+  1. Create account at [supabase.com](https://supabase.com)
+  2. Create a new project
+  3. Copy **Project URL** and **anon key** from Settings → API
+  4. Add to backend `.env`:
+     - `SUPABASE_URL`
+     - `SUPABASE_ANON_KEY`
+  
+  **Free tier:** 500 MB database, 2 GB bandwidth/month
+</Card>
+
+<Card title="Coinbase Developer Platform (CDP)" icon="key">
+  **Purpose:** Wallet provisioning and x402 payment signing
+  
+  **Get credentials:**
+  1. Visit [Coinbase Cloud](https://www.coinbase.com/cloud)
+  2. Create API credentials
+  3. Download API key JSON
+  4. Add to backend `.env`:
+     - `CDP_API_KEY_ID`
+     - `CDP_API_KEY_SECRET`
+</Card>
+
+#### Optional Services
+
+<AccordionGroup>
+  <Accordion title="CoinGecko API (Price Oracle)">
+    Free tier available: [coingecko.com/en/api](https://www.coingecko.com/en/api)
+    
+    Add to backend `.env`:
+    ```
+    COINGECKO_API_KEY=your_key_here
+    ```
+    
+    Without this, Price Oracle agent will use public API with rate limits.
+  </Accordion>
+
+  <Accordion title="Alchemy API (Chain Scout)">
+    Enhanced blockchain data: [alchemy.com](https://www.alchemy.com/)
+    
+    Add to backend `.env`:
+    ```
+    ALCHEMY_API_KEY=your_key_here
+    ```
+  </Accordion>
+
+  <Accordion title="Etherscan API (Chain Analytics)">
+    Contract verification and analytics: [etherscan.io/apis](https://etherscan.io/apis)
+    
+    Add to backend `.env`:
+    ```
+    ETHERSCAN_API_KEY=your_key_here
+    ```
+  </Accordion>
+
+  <Accordion title="OpenSea API (NFT Scout)">
+    NFT collection data: [docs.opensea.io](https://docs.opensea.io/reference/api-overview)
+    
+    Add to backend `.env`:
+    ```
+    OPENSEA_API_KEY=your_key_here
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### 3. Private Keys and Wallets
+
+You'll need private keys for several roles:
+
+**Backend Orchestrator Wallet:**
+```bash
+# Generate a new wallet or use existing testnet wallet
+# NEVER use a wallet with real funds
+
+PRIVATE_KEY=0x1234567890abcdef...
+```
+
+**Pinion x402 Wallet:**
+```bash
+# Separate wallet for x402 agent payments
+PINION_PRIVATE_KEY=0xabcdef1234567890...
+```
+
+<Warning>
+  **Security Notice:**
+  - NEVER commit private keys to Git
+  - Use `.env` files (already in `.gitignore`)
+  - Only use testnet wallets with no real funds
+  - Rotate keys regularly
+  - In production, use AWS Secrets Manager or similar
+</Warning>
+
+**Generate a new testnet wallet:**
+
+<CodeGroup>
+
+```bash Using cast (Foundry)
+cast wallet new
+# Outputs address and private key
+```
+
+```javascript Using ethers.js
+const { Wallet } = require('ethers');
+const wallet = Wallet.createRandom();
+console.log('Address:', wallet.address);
+console.log('Private Key:', wallet.privateKey);
+```
+
+```bash Using OpenSSL
+openssl rand -hex 32
+# Prefix with 0x for use as private key
+```
+
+</CodeGroup>
+
+### 4. Foundry (Optional)
+
+If you want to deploy or modify smart contracts:
+
+```bash
+# Install Foundry
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+
+# Verify installation
+forge --version
+cast --version
+anvil --version
+```
+
+**What is Foundry?**
+- `forge`: Compile and test Solidity contracts
+- `cast`: Interact with contracts from CLI
+- `anvil`: Run local Ethereum node
+
+Learn more: [book.getfoundry.sh](https://book.getfoundry.sh/)
+
+---
+
+## Verification Checklist
+
+Before proceeding to the [Quickstart](/quickstart), verify you have:
+
+**For Users:**
+- [ ] MetaMask or compatible wallet installed
+- [ ] Base Sepolia network added to wallet
+- [ ] At least 0.05 Base Sepolia ETH
+- [ ] At least 0.5 Base Sepolia USDC
+- [ ] USDC token imported in wallet (shows balance)
+
+**For Developers:**
+- [ ] Node.js 18+ installed
+- [ ] Git installed
+- [ ] Gemini API key obtained
+- [ ] Supabase project created (URL + anon key)
+- [ ] CDP API credentials obtained
+- [ ] Backend private key generated (testnet only)
+- [ ] Pinion private key generated (testnet only)
+- [ ] Optional API keys for external services
+
+<Note>
+  All set? Continue to the [Quickstart Guide](/quickstart) to make your first query!
+</Note>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Can't find Base Sepolia in network list">
+    Base Sepolia is not included by default in MetaMask. You must add it manually:
+    1. Click network dropdown → **Add Network**
+    2. Click **Add a network manually**
+    3. Enter the network details from the [Base Sepolia section](#2-base-sepolia-testnet-access)
+    4. Click **Save**
+  </Accordion>
+
+  <Accordion title="Faucet says 'Already claimed today'">
+    Most faucets limit claims to once per 24 hours per address. Solutions:
+    - Wait 24 hours and try again
+    - Try a different faucet from the list
+    - Use a different wallet address
+    - Ask in Base Discord for testnet tokens
+  </Accordion>
+
+  <Accordion title="USDC not showing in wallet">
+    You need to manually import the token:
+    1. Make sure you're on **Base Sepolia** network
+    2. Go to Assets → Import tokens
+    3. Paste USDC address: `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
+    4. Verify chain ID is 84532
+    
+    If still not showing, try sending a tiny amount (0.01 USDC) to your address to trigger detection.
+  </Accordion>
+
+  <Accordion title="Node version conflicts">
+    If you have multiple Node versions or get version errors:
+    
+    **Use nvm (Node Version Manager):**
+    ```bash
+    # Install nvm: https://github.com/nvm-sh/nvm
+    nvm install 18
+    nvm use 18
+    node --version  # Should show v18.x.x
+    ```
+  </Accordion>
+
+  <Accordion title="Supabase connection fails">
+    Common issues:
+    - Wrong URL format (should be `https://xxx.supabase.co`)
+    - Wrong key type (use **anon key**, not service role key)
+    - Project paused (Supabase pauses after 7 days inactivity on free tier)
+    - RLS policies blocking access (run SQL setup scripts in order)
+  </Accordion>
+</AccordionGroup>
+
+## Need Help?
+
+If you're stuck on prerequisites:
+
+- **Users**: Join the [Base Discord](https://discord.gg/base) for testnet token help
+- **Developers**: Check [GitHub Issues](https://github.com/Aypp23/x402-hackathon/issues) or the troubleshooting sections in the setup guides
+- **Both**: Read the full [README.md](https://github.com/Aypp23/x402-hackathon/blob/main/README.md) for detailed setup instructions

@@ -1,0 +1,419 @@
+---
+title: 'Agent Providers'
+description: 'Explore specialized AI agents, their pricing models, and how to connect them in the Arcana marketplace'
+---
+
+## Overview
+
+The Arcana x402 Agent Marketplace features **7 specialized AI agents** that provide on-chain data, DeFi analytics, news, and more. Each agent is a paid service that charges per API call using the x402 protocol.
+
+<Note>
+  Agents are paid automatically during query processing. The AI orchestrator routes your query to the most relevant agents based on your question.
+</Note>
+
+## Browsing Providers
+
+Navigate to the **Providers** page to explore available agents.
+
+### Search and Filter
+
+<Steps>
+  <Step title="Search by Name">
+    Use the search bar to find agents by name or description (e.g., "oracle", "yield", "NFT")
+  </Step>
+  
+  <Step title="Filter by Category">
+    Click category tabs to filter:
+    - **All**: Show all agents
+    - **DeFi**: Yield Optimizer, Price Oracle
+    - **NFT**: NFT Scout
+    - **Analytics**: Chain Scout, News Scout
+    - **Trading**: Universal Perp Stats
+  </Step>
+  
+  <Step title="View Agent Details">
+    Click on any agent card to expand and view full description, pricing, and response time stats.
+  </Step>
+</Steps>
+
+## Agent Catalog
+
+Each agent has a unique specialty and pricing model.
+
+### Price Oracle
+
+<Card title="Price Oracle Agent" icon="dollar-sign">
+  **Category:** DeFi  
+  **Price:** $0.01 per call  
+  **Pricing Model:** Per-call fixed  
+  **Endpoint:** `/api/x402/oracle/price`
+</Card>
+
+Real-time cryptocurrency prices from CoinGecko API.
+
+**Capabilities:**
+- Fetch current prices for BTC, ETH, SOL, and 100+ tokens
+- Multi-token price fetching in a single call
+- 24h price change data
+- Market cap and volume information
+
+**Example queries:**
+- "What's the price of Bitcoin?"
+- "Show me ETH and SOL prices"
+- "How much has ARB changed in the last 24 hours?"
+
+---
+
+### Chain Scout
+
+<Card title="Chain Scout" icon="chart-line">
+  **Category:** Analytics  
+  **Price:** $0.01 per call  
+  **Pricing Model:** Per-call fixed  
+  **Endpoints:** `/api/x402/scout/analyze`, `/api/x402/scout/nft/:slug`
+</Card>
+
+Wallet analytics, protocol TVL, DEX volume, bridges, and exploit tracking.
+
+**Capabilities:**
+- Wallet balance and transaction history analysis
+- Protocol total value locked (TVL) tracking
+- DEX volume and trade analytics
+- Cross-chain bridge monitoring
+- Exploit and hack detection
+
+**Example queries:**
+- "Analyze wallet 0x123..."
+- "What's the TVL of Uniswap?"
+- "Show me recent DeFi exploits"
+
+---
+
+### News Scout
+
+<Card title="News Scout" icon="newspaper">
+  **Category:** Analytics  
+  **Price:** $0.01 per call  
+  **Pricing Model:** Per-call fixed  
+  **Endpoint:** `/api/x402/news/latest`
+</Card>
+
+Real-time crypto news aggregator with sentiment analysis and trending topics.
+
+**Capabilities:**
+- Latest crypto news headlines
+- Sentiment analysis (bullish/bearish)
+- Trending topics detection
+- Multi-source aggregation
+
+**Example queries:**
+- "What's the latest crypto news?"
+- "Show me Bitcoin news from today"
+- "What are the trending topics in DeFi?"
+
+<Note>
+  News Scout uses multiple fallback sources (primary API + cached GitHub CDN) to ensure reliability.
+</Note>
+
+---
+
+### Yield Optimizer
+
+<Card title="Yield Optimizer" icon="percentage">
+  **Category:** DeFi  
+  **Price:** $0.01 per call  
+  **Pricing Model:** Per-call fixed  
+  **Endpoint:** `/api/x402/yield/top`
+</Card>
+
+DeFi yield aggregator comparing APYs across protocols.
+
+**Capabilities:**
+- Yield opportunities from Lido, Yearn, Beefy, Curve, Aave, and Pendle
+- APY comparison across protocols
+- Risk-adjusted yield recommendations
+- Stablecoin and volatile asset yields
+
+**Example queries:**
+- "What are the best yield opportunities for USDC?"
+- "Show me top ETH staking yields"
+- "Compare Aave vs Compound yields"
+
+---
+
+### Tokenomics Analyzer
+
+<Card title="Tokenomics Analyzer" icon="coins">
+  **Category:** Research  
+  **Price:** $0.02 per call  
+  **Pricing Model:** Per-call fixed  
+  **Endpoint:** `/api/x402/tokenomics/analyze`
+</Card>
+
+Token supply analysis, vesting schedules, unlock events, and inflation rates.
+
+**Capabilities:**
+- Circulating vs total supply analysis
+- Vesting schedule tracking
+- Unlock event calendars
+- Inflation rate calculations
+- Supports ARB, OP, SUI, APT, and more
+
+**Example queries:**
+- "What's the tokenomics of Arbitrum?"
+- "When is the next OP unlock?"
+- "Show me SUI vesting schedule"
+
+---
+
+### NFT Scout
+
+<Card title="NFT Scout" icon="image">
+  **Category:** NFT  
+  **Price:** $0.02 per call  
+  **Pricing Model:** Per-call fixed  
+  **Endpoint:** `/api/x402/scout/nft/:slug`
+</Card>
+
+NFT collection analytics including floor prices, volume trends, and sales history.
+
+**Capabilities:**
+- Floor price tracking
+- 24h volume and sales count
+- Historical price trends
+- Collection holder statistics
+- OpenSea collection data
+
+**Example queries:**
+- "What's the floor price of Bored Apes?"
+- "Show me Azuki collection stats"
+- "How much volume did Pudgy Penguins do today?"
+
+---
+
+### Universal Perp Stats
+
+<Card title="Universal Perp Stats" icon="trending-up">
+  **Category:** Trading  
+  **Price:** $0.02 per call  
+  **Pricing Model:** Per-call fixed  
+  **Endpoint:** `/api/x402/perp/markets`
+</Card>
+
+Real-time aggregated funding rates, open interest, and volume from multiple DEXs.
+
+**Capabilities:**
+- Funding rates across Hyperliquid, dYdX, GMX, and more
+- Open interest tracking
+- 24h volume by market
+- Multi-DEX aggregation
+
+**Example queries:**
+- "What's the funding rate for ETH-PERP?"
+- "Show me open interest on Hyperliquid"
+- "Compare perp volumes across DEXs"
+
+## Pricing Models
+
+All current agents use **per-call fixed pricing**:
+
+<Tabs>
+  <Tab title="$0.01 Agents">
+    - Price Oracle
+    - Chain Scout
+    - News Scout
+    - Yield Optimizer
+    
+    These agents provide quick, low-cost data lookups.
+  </Tab>
+  
+  <Tab title="$0.02 Agents">
+    - Tokenomics Analyzer
+    - NFT Scout
+    - Universal Perp Stats
+    
+    These agents perform more complex analysis or aggregate data from multiple sources.
+  </Tab>
+</Tabs>
+
+<Note>
+  Pricing is transparent and fixed. You'll see exactly which agents were used and their costs in the chat response.
+</Note>
+
+## Provider Dashboard
+
+Each agent has a dedicated dashboard showing performance metrics.
+
+### Connecting to a Provider
+
+<Steps>
+  <Step title="Navigate to Providers">
+    Click **Providers** in the sidebar navigation.
+  </Step>
+  
+  <Step title="Select an Agent">
+    Click **Connect** on any agent card.
+  </Step>
+  
+  <Step title="View Dashboard">
+    You'll be redirected to the agent's dashboard showing:
+    - **Treasury**: Total USDC earned by the agent
+    - **Tasks Completed**: Number of successful queries processed
+    - **Rating**: Average user rating (0-5 stars)
+    - **Response Time**: Average API response time
+    - **Recent Activity**: Latest queries and payments
+  </Step>
+</Steps>
+
+### Dashboard Metrics
+
+The agent dashboard shows real-time performance data:
+
+**Treasury Card**
+- Current USDC balance in agent's wallet
+- Viewable on BaseScan by clicking the agent name
+- Updates every 5 seconds
+
+**Tasks Completed**
+- Total number of queries processed by this agent
+- Increments with each successful call
+
+**Spend Summary** (per session)
+- Total spent calling this agent in current session
+- Budget limit ($1.00 default)
+- Remaining budget
+- Number of paid calls
+
+**Receipts**
+- Detailed payment records with transaction hashes
+- Endpoint called (e.g., `/api/x402/oracle/price`)
+- Amount paid (e.g., $0.01)
+- Settlement details (payer, network, tx hash)
+
+**Activity Feed**
+- Recent queries processed
+- Response times
+- Payment confirmations
+
+<Tip>
+  The dashboard auto-refreshes every 5 seconds, so you can watch agent activity in real-time.
+</Tip>
+
+## Agent Status
+
+Agents can be in two states:
+
+### Active Agents
+
+<Card title="Active" icon="check-circle">
+  **Indicator:** Green dot with "AGENT ACTIVE" badge  
+  **Behavior:** Agent is processing queries normally
+</Card>
+
+Active agents:
+- Respond to queries immediately
+- Charge per-call fees as usual
+- Appear at the top of the Providers list
+
+### Frozen Agents
+
+<Card title="Frozen" icon="snowflake">
+  **Indicator:** Red dot with "AGENT FROZEN" badge  
+  **Behavior:** Agent is temporarily disabled by admin
+</Card>
+
+Frozen agents:
+- Do not respond to queries
+- Show a red "FROZEN" watermark on their card
+- Are sorted to the bottom of the Providers list
+- Can be managed by clicking **Manage** button (admin only)
+
+<Warning>
+  If your query requires a frozen agent, the AI orchestrator will skip that agent and use alternatives (or explain why it can't fulfill the request).
+</Warning>
+
+## Agent Wallets
+
+Each agent has a dedicated wallet address on Base Sepolia:
+
+- **Price Oracle**: `0x...` (from seller address map)
+- **Chain Scout**: `0x...`
+- **News Scout**: `0x...`
+- etc.
+
+These wallets:
+- Receive payment for each API call
+- Are visible on the Dashboard
+- Can be viewed on BaseScan (click the agent name link)
+
+<Note>
+  Agent wallets are created using CDP (Coinbase Developer Platform) and managed by the x402 protocol.
+</Note>
+
+## Performance Ratings
+
+Users can rate agent responses directly in the chat.
+
+### Rating System
+
+- **5 stars**: Excellent, exactly what I needed
+- **4 stars**: Good, helpful response
+- **3 stars**: Okay, but could be better
+- **2 stars**: Mediocre, missing key info
+- **1 star**: Poor, unhelpful or incorrect
+
+### How Ratings Work
+
+1. After receiving a response, hover over the message
+2. Click the star rating icon
+3. Select 1-5 stars
+4. Rating is saved and updates the agent's average
+
+<Tip>
+  Rating agents helps improve the marketplace and rewards high-quality providers.
+</Tip>
+
+## Paid Tools (x402)
+
+All agents use the **x402 HTTP payment protocol**:
+
+1. Orchestrator calls agent endpoint → receives `402 Payment Required`
+2. Orchestrator signs payment using Pinion wallet
+3. Orchestrator retries request with payment proof → receives data
+4. Receipt is logged in Supabase
+
+<Note>
+  This is all handled automatically. Users just see the final AI response with a summary of which agents were used.
+</Note>
+
+## Becoming a Provider
+
+Interested in listing your own agent on the marketplace?
+
+**Requirements:**
+- Implement x402 payment protocol (402 → pay → retry)
+- Deploy to a publicly accessible URL
+- Register with admin (provide endpoint, pricing, description)
+- Optional: Use CDP for wallet management
+
+**Benefits:**
+- Earn USDC for every API call
+- Transparent payment tracking
+- Built-in user discovery via Providers page
+- Real-time dashboard for monitoring
+
+<Card title="Contact" icon="envelope">
+  To list your agent, contact the Arcana team with your endpoint details, pricing, and agent description.
+</Card>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Making Queries" icon="message-circle" href="/guides/making-queries">
+    Learn how to submit queries and make payments
+  </Card>
+  
+  <Card title="Policy Controls" icon="shield" href="/guides/policy-controls">
+    Understand admin controls for freezing and managing agents
+  </Card>
+</CardGroup>

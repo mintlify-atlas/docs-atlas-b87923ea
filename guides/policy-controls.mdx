@@ -1,0 +1,521 @@
+---
+title: 'Policy Controls'
+description: 'Admin policy controls for freezing agents, setting spend limits, and managing allowlists in the Arcana marketplace'
+---
+
+## Overview
+
+The Arcana x402 Agent Marketplace includes **admin policy controls** to manage agent behavior, enforce spend limits, and maintain platform security. These controls are available to agent owners and platform administrators.
+
+<Note>
+  Policy controls require authentication via the `x-admin-key` header or wallet ownership verification.
+</Note>
+
+## Agent Freeze/Unfreeze
+
+The most common policy action is freezing or reactivating an agent.
+
+### What is Freezing?
+
+Freezing an agent **immediately stops all operations**:
+- Agent stops responding to queries
+- Agent is marked "FROZEN" on Providers page
+- Agent is sorted to bottom of provider list
+- Agent wallet stops receiving payments
+- Users see a red "FROZEN" watermark on the agent card
+
+<Warning>
+  Freezing is instant and affects all users immediately. Use this for emergency situations (e.g., compromised agent, cost overruns, maintenance).
+</Warning>
+
+### Freezing an Agent
+
+<Tabs>
+  <Tab title="Via Dashboard UI">
+    <Steps>
+      <Step title="Connect to Agent">
+        Go to **Providers** page and click **Connect** on the agent you own.
+      </Step>
+      
+      <Step title="Open Dashboard">
+        You'll be redirected to the agent's dashboard.
+      </Step>
+      
+      <Step title="Freeze Agent">
+        In the **Agent Controls** card (right side), click the **FREEZE AGENT** button.
+      </Step>
+      
+      <Step title="Confirm Action">
+        A modal will ask you to confirm. Click **Yes, Freeze** to proceed.
+      </Step>
+    </Steps>
+    
+    <Note>
+      The dashboard only shows the "Agent Controls" card if you are the agent owner or have the `VITE_ADMIN_API_KEY` set.
+    </Note>
+  </Tab>
+  
+  <Tab title="Via API">
+    ```bash
+    curl -X POST http://localhost:3001/admin/policy/oracle/freeze \
+      -H "Content-Type: application/json" \
+      -H "x-admin-key: YOUR_ADMIN_API_KEY" \
+      -d '{"frozen": true}'
+    ```
+    
+    **Response:**
+    ```json
+    {
+      "success": true,
+      "agentId": "oracle",
+      "policy": {
+        "frozen": true,
+        "updatedAt": "2026-03-03T10:15:30Z"
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Reactivating an Agent
+
+To unfreeze and reactivate an agent:
+
+<Tabs>
+  <Tab title="Via Dashboard UI">
+    <Steps>
+      <Step title="Navigate to Frozen Agent">
+        Go to **Providers** page and find the frozen agent (red badge).
+      </Step>
+      
+      <Step title="Click Manage">
+        Click the **Manage** button on the frozen agent card.
+      </Step>
+      
+      <Step title="Reactivate">
+        In the dashboard, click **REACTIVATE AGENT** in the Agent Controls card.
+      </Step>
+      
+      <Step title="Confirm Action">
+        Click **Yes, Reactivate** in the confirmation modal.
+      </Step>
+    </Steps>
+  </Tab>
+  
+  <Tab title="Via API">
+    ```bash
+    curl -X POST http://localhost:3001/admin/policy/oracle/freeze \
+      -H "Content-Type: application/json" \
+      -H "x-admin-key: YOUR_ADMIN_API_KEY" \
+      -d '{"frozen": false}'
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+  Frozen agents remain visible on the Providers page so users can see they exist but are temporarily unavailable.
+</Tip>
+
+## Spend Limits
+
+Policy controls enforce spending caps at multiple levels.
+
+### Per-Call Spend Limit
+
+Restricts the maximum amount an agent can spend per individual API call.
+
+**Environment Variable:**
+```bash
+X402_POLICY_PER_CALL_LIMIT_USD=0.05
+```
+
+**Behavior:**
+- If an agent tries to make a call exceeding this limit, it's denied
+- Policy decision is logged with reason: `"Exceeds per-call limit"`
+- User sees a budget exhausted message
+
+<Note>
+  Default: `$0.05` per call
+</Note>
+
+### Daily Spend Limit
+
+Restricts the maximum total spend per agent per day.
+
+**Environment Variable:**
+```bash
+X402_POLICY_DAILY_LIMIT_USD=1.00
+```
+
+**Behavior:**
+- Tracks cumulative spend across all calls in a 24-hour window
+- Once limit is reached, all calls are denied until reset
+- Policy decision is logged with reason: `"Exceeds daily limit"`
+
+<Note>
+  Default: `$1.00` per agent per day
+</Note>
+
+### Session Spend Limit (Runtime Guardrail)
+
+The **Pinion runtime** provides an additional session-level spend cap.
+
+**Default:** `$1.00` per user session
+
+**Viewing Status:**
+```bash
+curl http://localhost:3001/x402/runtime-spend-limit
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "status": {
+    "maxBudget": "1.000000",
+    "spent": "0.030000",
+    "remaining": "0.970000",
+    "callCount": 3,
+    "isLimited": true
+  }
+}
+```
+
+**Setting Custom Limit:**
+```bash
+curl -X POST http://localhost:3001/x402/runtime-spend-limit \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY" \
+  -d '{"action": "set", "maxUsdc": "2.00"}'
+```
+
+**Clearing Limit:**
+```bash
+curl -X POST http://localhost:3001/x402/runtime-spend-limit \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY" \
+  -d '{"action": "clear"}'
+```
+
+<Tip>
+  Runtime spend limits are enforced in-memory and reset when the backend restarts. Daily limits are persisted in Supabase.
+</Tip>
+
+## Allowlists
+
+Allowlists restrict which endpoints and payment recipients agents can use.
+
+### Endpoint Allowlist
+
+Restricts which URLs agents can call via x402 procurement.
+
+**Environment Variable:**
+```bash
+X402_PROCUREMENT_ALLOWED_DOMAINS=api.example.com,data.provider.xyz
+```
+
+**Behavior:**
+- Only domains in the allowlist are permitted
+- Requests to non-allowlisted domains are denied
+- Policy decision is logged with reason: `"Domain not in allowlist"`
+
+<Note>
+  If empty, all domains are allowed (except those in the blocklist).
+</Note>
+
+### Domain Blocklist
+
+Bans specific domains from being called.
+
+**Environment Variable:**
+```bash
+X402_PROCUREMENT_BLOCKED_DOMAINS=malicious.com,untrusted.xyz
+```
+
+**Behavior:**
+- Any request to a blocklisted domain is immediately denied
+- Takes precedence over allowlist
+
+### PayTo Allowlist
+
+Restricts which wallet addresses can receive x402 payments.
+
+**Environment Variable:**
+```bash
+X402_PROCUREMENT_PAYTO_ALLOWLIST=0x1234...,0x5678...
+```
+
+**Behavior:**
+- Only addresses in the allowlist can receive payments
+- Prevents payment to unknown or malicious wallets
+- Policy decision is logged with reason: `"PayTo address not in allowlist"`
+
+<Warning>
+  Use PayTo allowlist in production to prevent fund drainage attacks.
+</Warning>
+
+### Network Allowlist
+
+Restricts which blockchain networks can be used for settlement.
+
+**Environment Variable:**
+```bash
+X402_PROCUREMENT_NETWORK_ALLOWLIST=eip155:84532,eip155:8453
+```
+
+**Behavior:**
+- Only specified networks are allowed (e.g., Base Sepolia, Base Mainnet)
+- Requests to other networks are denied
+
+<Note>
+  Network format: `eip155:<chainId>` (e.g., `eip155:84532` for Base Sepolia)
+</Note>
+
+## Policy Decision Logs
+
+All policy decisions are logged and visible in the dashboard.
+
+### Decision Log Fields
+
+- **stepIndex**: Order in the query trace
+- **toolName**: Which AI tool was invoked (e.g., "getPrice", "analyzeWallet")
+- **endpoint**: The x402 endpoint called
+- **quotedPriceUsd**: How much the call would cost
+- **reason**: Why this decision was made (e.g., "Need price data", "Budget exhausted")
+- **budgetBeforeUsd**: Budget before this call
+- **budgetAfterUsd**: Budget after this call
+- **outcome**: `success`, `skipped`, or `failed`
+- **receiptRef**: Receipt ID if payment was made
+- **latencyMs**: Response time in milliseconds
+
+### Viewing Decision Logs
+
+<Steps>
+  <Step title="Navigate to Dashboard">
+    Go to **Dashboard** after making a query.
+  </Step>
+  
+  <Step title="View Spend Summary">
+    Scroll to the **Spend Summary** section.
+  </Step>
+  
+  <Step title="Inspect Decision Log">
+    The decision log shows all policy checks, approvals, and denials for the current session.
+  </Step>
+</Steps>
+
+**Example Decision Log Entry:**
+```json
+{
+  "stepIndex": 1,
+  "toolName": "getPrice",
+  "endpoint": "/api/x402/oracle/price",
+  "quotedPriceUsd": 0.01,
+  "reason": "Need current ETH price",
+  "budgetBeforeUsd": 1.0,
+  "budgetAfterUsd": 0.99,
+  "outcome": "success",
+  "receiptRef": "rcpt_abc123",
+  "latencyMs": 245
+}
+```
+
+<Tip>
+  Decision logs are invaluable for debugging why certain agents were or weren't used in a query.
+</Tip>
+
+## Updating Agent Policy
+
+You can update other policy settings via the API.
+
+### API Endpoint
+
+```bash
+PATCH /admin/policy/:agentId
+```
+
+### Request Body
+
+```json
+{
+  "frozen": false,
+  "dailyLimitUsd": 5.0,
+  "perCallLimitUsd": 0.1,
+  "allowedEndpoints": ["/api/x402/oracle/price"],
+  "allowedPayTo": ["0x1234...", "0x5678..."]
+}
+```
+
+### Example
+
+```bash
+curl -X PATCH http://localhost:3001/admin/policy/oracle \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY" \
+  -d '{
+    "frozen": false,
+    "dailyLimitUsd": 10.0,
+    "perCallLimitUsd": 0.05
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "agentId": "oracle",
+  "policy": {
+    "frozen": false,
+    "dailyLimitUsd": 10.0,
+    "perCallLimitUsd": 0.05,
+    "updatedAt": "2026-03-03T10:20:00Z"
+  }
+}
+```
+
+## Viewing All Policies
+
+Retrieve all agent policies at once.
+
+### API Endpoint
+
+```bash
+GET /admin/policy
+```
+
+### Example
+
+```bash
+curl http://localhost:3001/admin/policy \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "policies": [
+    {
+      "agentId": "oracle",
+      "frozen": false,
+      "dailyLimitUsd": 1.0,
+      "perCallLimitUsd": 0.05,
+      "allowedEndpoints": [],
+      "allowedPayTo": [],
+      "createdAt": "2026-03-01T00:00:00Z",
+      "updatedAt": "2026-03-03T10:20:00Z"
+    },
+    {
+      "agentId": "scout",
+      "frozen": false,
+      "dailyLimitUsd": 1.0,
+      "perCallLimitUsd": 0.05,
+      "allowedEndpoints": [],
+      "allowedPayTo": [],
+      "createdAt": "2026-03-01T00:00:00Z",
+      "updatedAt": "2026-03-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+## Rate Limiting
+
+Admin policy endpoints have dedicated rate limits:
+
+- **30 requests per minute** per IP address
+- Separate from general API rate limits (100 req/15min)
+- Prevents abuse of freeze/unfreeze actions
+
+<Warning>
+  If you hit the rate limit, you'll receive:
+  ```json
+  {
+    "error": "Too many admin policy requests, please slow down."
+  }
+  ```
+  Wait 60 seconds and try again.
+</Warning>
+
+## Authentication
+
+Policy controls require authentication via one of two methods:
+
+### Method 1: Admin API Key
+
+Set the `x-admin-key` header with your admin API key.
+
+**Backend Environment Variable:**
+```bash
+ADMIN_API_KEY=your-secure-random-key
+```
+
+**Request:**
+```bash
+curl -H "x-admin-key: your-secure-random-key" \
+  http://localhost:3001/admin/policy
+```
+
+<Warning>
+  Do **not** expose `ADMIN_API_KEY` in frontend environment variables in production. Use backend-only authentication.
+</Warning>
+
+### Method 2: Wallet Ownership
+
+The dashboard checks if your connected wallet address matches the agent's wallet address.
+
+**Flow:**
+1. Connect wallet on frontend
+2. Navigate to agent dashboard
+3. If `wallet.address.toLowerCase() === agent.wallet.toLowerCase()`, show Agent Controls card
+
+<Note>
+  This method is more secure for production but requires wallet signatures for each action.
+</Note>
+
+## Best Practices
+
+<Tip>
+  **Test Freezing**: Test freeze/unfreeze on a staging agent before using in production.
+</Tip>
+
+- **Monitor Spend**: Set daily limits conservatively and monitor actual usage
+- **Use Allowlists**: Enable PayTo and endpoint allowlists in production
+- **Log Decisions**: Review decision logs regularly to understand policy impacts
+- **Communicate Freezes**: If freezing an agent, notify users via status page or Discord
+- **Rotate Keys**: Rotate `ADMIN_API_KEY` regularly (monthly or after team changes)
+- **Secure Keys**: Never commit API keys to git or expose in frontend
+
+## Troubleshooting
+
+**"Unauthorized" Error**
+- Ensure `ADMIN_API_KEY` is set in backend `.env`
+- Verify `x-admin-key` header matches the backend key
+- Check that your wallet address matches the agent wallet (for UI controls)
+
+**"Too Many Requests" Error**
+- You've hit the 30 req/min rate limit
+- Wait 60 seconds before retrying
+- Batch policy updates instead of multiple rapid calls
+
+**Agent Still Processing Queries After Freeze**
+- Refresh the Providers page to confirm freeze status
+- Check `/admin/policy/:agentId` to verify frozen state
+- Ensure no cached frontend state is showing stale data
+
+**Policy Not Persisting**
+- Verify Supabase connection is working (`/health` endpoint)
+- Check backend logs for Supabase errors
+- Ensure `supabase-agent-policy.sql` was run
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Treasury Management" icon="wallet" href="/guides/treasury-management">
+    Learn how to manage agent wallets with Pinion
+  </Card>
+  
+  <Card title="Agent Providers" icon="users" href="/guides/agent-providers">
+    Explore agent capabilities and pricing
+  </Card>
+</CardGroup>

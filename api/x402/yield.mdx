@@ -1,0 +1,300 @@
+---
+title: 'Yield Optimizer Agent'
+description: 'Discover the best DeFi yields across protocols and chains'
+---
+
+The Yield Optimizer Agent aggregates yield opportunities from Aave, Yearn, Beefy, Curve, Pendle, Lido, and Turtle.
+
+## Pricing
+
+Each request costs **$0.01 USD** (paid via x402 on Base Sepolia testnet).
+
+---
+
+## Get Top Yields
+
+Retrieve the highest yield opportunities across all supported protocols.
+
+```bash GET /api/x402/yield/top
+curl "https://api.arcana.markets/api/x402/yield/top?chain=ethereum&minApy=5&limit=20" \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Query Parameters
+
+<ParamField query="chain" type="string" optional>
+  Filter by blockchain:
+  - `ethereum`
+  - `arbitrum`
+  - `optimism`
+  - `base`
+  - `polygon`
+  - `bnb`
+  - `avalanche`
+</ParamField>
+
+<ParamField query="minApy" type="number" default="0">
+  Minimum APY percentage (e.g., `5` for 5%+)
+</ParamField>
+
+<ParamField query="maxApy" type="number" optional>
+  Maximum APY percentage (useful to filter out unsustainable yields)
+</ParamField>
+
+<ParamField query="type" type="string" optional>
+  Filter by yield type:
+  - `staking` - ETH staking (Lido)
+  - `lending` - Supply APY (Aave)
+  - `vault` - Auto-compounding vaults (Yearn, Beefy)
+  - `lp` - Liquidity pools (Curve)
+  - `fixed` - Fixed-rate yields (Pendle)
+</ParamField>
+
+<ParamField query="protocol" type="string" optional>
+  Filter by protocol: `aave`, `yearn`, `beefy`, `curve`, `pendle`, `lido`, `turtle`
+</ParamField>
+
+<ParamField query="limit" type="number" default="20">
+  Number of results to return
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request succeeded
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  <ResponseField name="opportunities" type="array">
+    Array of yield opportunities
+    
+    <ResponseField name="protocol" type="string">
+      Protocol name (e.g., "Aave", "Yearn", "Curve")
+    </ResponseField>
+    
+    <ResponseField name="name" type="string">
+      Yield opportunity name
+    </ResponseField>
+    
+    <ResponseField name="asset" type="string">
+      Primary asset (e.g., "USDC", "ETH", "WBTC")
+    </ResponseField>
+    
+    <ResponseField name="apy" type="number">
+      Annual Percentage Yield
+    </ResponseField>
+    
+    <ResponseField name="tvl" type="number">
+      Total Value Locked in USD (if available)
+    </ResponseField>
+    
+    <ResponseField name="chain" type="string">
+      Blockchain network
+    </ResponseField>
+    
+    <ResponseField name="risk" type="string">
+      Risk assessment: `LOW`, `MEDIUM`, or `HIGH`
+    </ResponseField>
+    
+    <ResponseField name="type" type="string">
+      Yield type: `staking`, `lending`, `vault`, `lp`, `fixed`
+    </ResponseField>
+    
+    <ResponseField name="url" type="string">
+      Direct link to protocol page
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="totalCount" type="number">
+    Total opportunities matching filters
+  </ResponseField>
+  
+  <ResponseField name="fetchedAt" type="string">
+    ISO 8601 timestamp
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="payment" type="object">
+  x402 payment receipt
+</ResponseField>
+
+<CodeGroup>
+
+```json Response Example
+{
+  "success": true,
+  "data": {
+    "opportunities": [
+      {
+        "protocol": "Pendle",
+        "name": "PT-stETH (92d)",
+        "asset": "stETH",
+        "apy": 12.4,
+        "chain": "ethereum",
+        "risk": "LOW",
+        "type": "fixed",
+        "url": "https://app.pendle.finance/trade/pools"
+      },
+      {
+        "protocol": "Aave",
+        "name": "USDC Supply",
+        "asset": "USDC",
+        "apy": 8.7,
+        "chain": "ethereum",
+        "risk": "LOW",
+        "type": "lending",
+        "url": "https://app.aave.com/reserve-overview/?underlyingAsset=0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48&marketName=proto_mainnet_v3"
+      },
+      {
+        "protocol": "Curve",
+        "name": "3pool (USDC/USDT/DAI)",
+        "asset": "3pool",
+        "apy": 7.2,
+        "chain": "ethereum",
+        "risk": "LOW",
+        "type": "lp",
+        "url": "https://curve.fi/#/ethereum/pools/3pool"
+      },
+      {
+        "protocol": "Lido",
+        "name": "stETH Staking",
+        "asset": "ETH → stETH",
+        "apy": 3.2,
+        "tvl": 30000000000,
+        "chain": "ethereum",
+        "risk": "LOW",
+        "type": "staking",
+        "url": "https://stake.lido.fi"
+      },
+      {
+        "protocol": "Beefy",
+        "name": "Beefy USDC Vault",
+        "asset": "USDC",
+        "apy": 15.8,
+        "chain": "arbitrum",
+        "risk": "MEDIUM",
+        "type": "vault",
+        "url": "https://app.beefy.com/vault/aave-arbitrum-usdc"
+      }
+    ],
+    "totalCount": 847,
+    "fetchedAt": "2026-03-03T12:00:00.000Z"
+  },
+  "payment": { /* x402 receipt */ }
+}
+```
+
+</CodeGroup>
+
+---
+
+## Get Yields for Asset
+
+Find all yield opportunities for a specific token.
+
+```bash GET /api/x402/yield/asset
+curl "https://api.arcana.markets/api/x402/yield/asset?token=USDC" \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Query Parameters
+
+<ParamField query="token" type="string" required>
+  Token symbol (e.g., `USDC`, `ETH`, `WBTC`, `DAI`)
+</ParamField>
+
+### Response
+
+Returns array of yield opportunities matching the token, sorted by APY.
+
+<CodeGroup>
+
+```json Response Example
+{
+  "success": true,
+  "data": {
+    "opportunities": [
+      {
+        "protocol": "Beefy",
+        "name": "Beefy USDC Vault",
+        "asset": "USDC",
+        "apy": 15.8,
+        "chain": "arbitrum",
+        "risk": "MEDIUM",
+        "type": "vault"
+      },
+      {
+        "protocol": "Aave",
+        "name": "USDC Supply",
+        "asset": "USDC",
+        "apy": 8.7,
+        "chain": "ethereum",
+        "risk": "LOW",
+        "type": "lending"
+      },
+      {
+        "protocol": "Aave",
+        "name": "USDC Supply",
+        "asset": "USDC",
+        "apy": 9.4,
+        "chain": "base",
+        "risk": "LOW",
+        "type": "lending"
+      }
+    ],
+    "totalCount": 3,
+    "fetchedAt": "2026-03-03T12:00:00.000Z"
+  },
+  "payment": { /* x402 receipt */ }
+}
+```
+
+</CodeGroup>
+
+---
+
+## Risk Assessment
+
+Each opportunity includes a risk score based on:
+
+### LOW Risk
+- Tier 1 protocols: Lido, Aave, Pendle, Compound ($10B+ TVL, 5+ major audits)
+- Sustainable APY (0-15%)
+- Organic yield from protocol fees
+- Staking, lending, or fixed-rate yields
+
+### MEDIUM Risk
+- Tier 2 protocols: Yearn, Curve ($500M+ TVL, 3+ audits)
+- APY 15-30%
+- Some vault strategy risk
+- Established protocols with strong track record
+
+### HIGH Risk
+- Smaller protocols or high APY (30%+)
+- Likely unsustainable yields
+- Higher smart contract risk
+- LP pools with impermanent loss exposure
+
+---
+
+## x402 Payment Flow
+
+All Yield Optimizer endpoints require payment via x402:
+
+- **Price**: $0.01 per request
+- **Network**: Base Sepolia (eip155:84532)
+- **Seller Address**: `0x095691C40335E7Da13ca669EE3A07eB7422e2be3`
+
+### Supported Protocols
+
+- **Lido** - Ethereum staking
+- **Aave** - Lending markets (Ethereum, Arbitrum, Optimism, Base, Polygon)
+- **Yearn** - Auto-compounding vaults
+- **Beefy** - Multi-chain yield aggregator
+- **Curve** - Stablecoin and token liquidity pools
+- **Pendle** - Fixed and variable yield trading
+- **Turtle** - Yield aggregation across protocols
+
+<Note>
+Yield data is aggregated from official protocol APIs and updated in real-time.
+</Note>

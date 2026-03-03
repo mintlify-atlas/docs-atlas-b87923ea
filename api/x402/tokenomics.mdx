@@ -1,0 +1,284 @@
+---
+title: 'Tokenomics Analyzer Agent'
+description: 'Token supply data, vesting schedules, unlock events, and allocation breakdowns'
+---
+
+The Tokenomics Analyzer provides comprehensive token supply analysis, unlock schedules, and allocation data for 200+ tokens.
+
+## Pricing
+
+Each request costs **$0.02 USD** (paid via x402 on Base Sepolia testnet).
+
+---
+
+## Analyze Tokenomics
+
+Get comprehensive tokenomics data including supply, unlock events, and allocation breakdown.
+
+```bash GET /api/x402/tokenomics/analyze
+curl "https://api.arcana.markets/api/x402/tokenomics/analyze?symbol=ARB" \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Query Parameters
+
+<ParamField query="symbol" type="string" default="ARB">
+  Token symbol (e.g., `ARB`, `OP`, `SUI`, `APT`, `TIA`, `STRK`)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request succeeded
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  <ResponseField name="symbol" type="string">
+    Token symbol (uppercase)
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    Full token name
+  </ResponseField>
+  
+  <ResponseField name="supply" type="object">
+    <ResponseField name="circulating" type="number">
+      Current circulating supply
+    </ResponseField>
+    
+    <ResponseField name="total" type="number">
+      Total supply
+    </ResponseField>
+    
+    <ResponseField name="max" type="number | null">
+      Maximum supply (null if unlimited)
+    </ResponseField>
+    
+    <ResponseField name="circulatingFormatted" type="string">
+      Human-readable circulating (e.g., "1.23B")
+    </ResponseField>
+    
+    <ResponseField name="totalFormatted" type="string">
+      Human-readable total
+    </ResponseField>
+    
+    <ResponseField name="maxFormatted" type="string | null">
+      Human-readable max supply
+    </ResponseField>
+    
+    <ResponseField name="percentUnlocked" type="number">
+      Percentage of total supply in circulation
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="nextUnlock" type="object | null">
+    Next scheduled unlock event
+    
+    <ResponseField name="date" type="string">
+      ISO 8601 date (YYYY-MM-DD)
+    </ResponseField>
+    
+    <ResponseField name="amount" type="number">
+      Tokens to be unlocked
+    </ResponseField>
+    
+    <ResponseField name="amountFormatted" type="string">
+      Human-readable amount
+    </ResponseField>
+    
+    <ResponseField name="percentOfCirculating" type="number">
+      Unlock size as % of circulating supply
+    </ResponseField>
+    
+    <ResponseField name="recipient" type="string">
+      Who receives the unlock (e.g., "Team", "Investors")
+    </ResponseField>
+    
+    <ResponseField name="riskLevel" type="string">
+      Impact assessment (🟢 MINIMAL, 🟡 LOW, 🟠 MEDIUM, 🔴 HIGH)
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="upcomingUnlocks" type="array">
+    Next 5 unlock events (same structure as nextUnlock)
+  </ResponseField>
+  
+  <ResponseField name="allocations" type="array">
+    Token allocation breakdown
+    
+    <ResponseField name="category" type="string">
+      Allocation category (e.g., "DAO Treasury", "Team", "Investors")
+    </ResponseField>
+    
+    <ResponseField name="percentage" type="number">
+      Percentage of total supply
+    </ResponseField>
+    
+    <ResponseField name="amount" type="number">
+      Number of tokens (if available)
+    </ResponseField>
+    
+    <ResponseField name="amountFormatted" type="string">
+      Human-readable amount
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="inflation" type="object">
+    <ResponseField name="annualRate" type="string">
+      Estimated annual inflation rate
+    </ResponseField>
+    
+    <ResponseField name="fullyDilutedBy" type="string | null">
+      Estimated year when fully diluted (e.g., "~2028")
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="fetchedAt" type="string">
+    ISO 8601 timestamp
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="payment" type="object">
+  x402 payment receipt
+</ResponseField>
+
+<CodeGroup>
+
+```json Response Example
+{
+  "success": true,
+  "data": {
+    "symbol": "ARB",
+    "name": "Arbitrum",
+    "supply": {
+      "circulating": 3270000000,
+      "total": 10000000000,
+      "max": 10000000000,
+      "circulatingFormatted": "3.27B",
+      "totalFormatted": "10.00B",
+      "maxFormatted": "10.00B",
+      "percentUnlocked": 32.7
+    },
+    "nextUnlock": {
+      "date": "2026-03-16",
+      "amount": 85000000,
+      "amountFormatted": "85.00M",
+      "percentOfCirculating": 2.6,
+      "recipient": "Team & Advisors: 45M, Investors: 40M",
+      "riskLevel": "🟠 MEDIUM - Noticeable selling pressure likely"
+    },
+    "upcomingUnlocks": [
+      {
+        "date": "2026-03-16",
+        "amount": 85000000,
+        "amountFormatted": "85.00M",
+        "percentOfCirculating": 2.6,
+        "recipient": "Team & Advisors: 45M, Investors: 40M",
+        "riskLevel": "🟠 MEDIUM - Noticeable selling pressure likely"
+      },
+      {
+        "date": "2026-04-16",
+        "amount": 72000000,
+        "amountFormatted": "72.00M",
+        "percentOfCirculating": 2.2,
+        "recipient": "Team & Advisors",
+        "riskLevel": "🟠 MEDIUM - Noticeable selling pressure likely"
+      }
+    ],
+    "allocations": [
+      {
+        "category": "DAO Treasury",
+        "percentage": 42.78
+      },
+      {
+        "category": "Team & Advisors",
+        "percentage": 26.94
+      },
+      {
+        "category": "Investors",
+        "percentage": 17.53
+      },
+      {
+        "category": "Community (Airdrop)",
+        "percentage": 11.62
+      }
+    ],
+    "inflation": {
+      "annualRate": "~13.7%",
+      "fullyDilutedBy": "~2028"
+    },
+    "fetchedAt": "2026-03-03T12:00:00.000Z"
+  },
+  "payment": { /* x402 receipt */ }
+}
+```
+
+</CodeGroup>
+
+---
+
+## Unlock Risk Levels
+
+Unlock events are assessed based on their impact on circulating supply:
+
+### 🟢 MINIMAL (< 0.5%)
+Negligible impact on price. Typical monthly vesting for mature tokens.
+
+### 🟡 LOW (0.5% - 2%)
+Minor supply increase. May cause temporary price dip.
+
+### 🟠 MEDIUM (2% - 5%)
+Noticeable selling pressure likely. Significant unlock event.
+
+### 🔴 HIGH (> 5%)
+Major unlock with high sell pressure risk. Often seen with:
+- Initial investor unlocks
+- Team cliff unlocks
+- Large DAO treasury releases
+
+---
+
+## Supported Tokens
+
+The Tokenomics Analyzer supports 200+ tokens including:
+
+### Layer 2 Tokens
+`ARB`, `OP`, `STRK`, `ZK`, `METIS`, `IMX`, `MATIC` (POL)
+
+### New Layer 1s
+`SUI`, `APT`, `SEI`, `TIA`, `HYPE`, `MON`
+
+### DeFi Protocols
+`AAVE`, `UNI`, `CRV`, `MKR`, `COMP`, `SNX`, `LDO`, `PENDLE`
+
+### AI & Data
+`TAO`, `FET`, `AGIX`, `VIRTUAL`, `RENDER`, `GRT`
+
+### Meme Coins
+`PEPE`, `SHIB`, `DOGE`, `FLOKI`, `BONK`, `WIF`
+
+<Note>
+For full list of supported tokens, see the TOKEN_MAPPINGS in the source code.
+</Note>
+
+---
+
+## Data Sources
+
+- **Supply Data**: CoinGecko API (circulating, total, max supply)
+- **Vesting Schedules**: Mobula API (unlock events, allocation data)
+- **Hardcoded Data**: Curated allocations for major tokens (ARB, OP, SUI, APT, etc.)
+
+---
+
+## x402 Payment Flow
+
+All Tokenomics Analyzer requests require payment via x402:
+
+- **Price**: $0.02 per request (2x oracle price due to data complexity)
+- **Network**: Base Sepolia (eip155:84532)
+- **Seller Address**: `0xc99A4f20E7433d0B6fB48ca805Ffebe989e48Ca6`
+
+<Note>
+Tokenomics data combines real-time supply metrics with vetted allocation data to provide the most accurate unlock analysis available.
+</Note>

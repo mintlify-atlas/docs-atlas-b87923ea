@@ -1,0 +1,1125 @@
+---
+title: 'Agent Marketplace'
+description: 'Explore the 7 specialized crypto intelligence agents'
+icon: 'store'
+---
+
+## Overview
+
+The Arcana Agent Marketplace consists of **7 specialized agents**, each providing domain-specific crypto intelligence through paid x402 endpoints. Every agent is independently priced and optimized for its specific use case.
+
+<CardGroup cols={3}>
+  <Card title="4 Basic Agents" icon="circle">
+    **$0.01 per call**
+    
+    - Oracle
+    - Scout
+    - News
+    - Yield
+  </Card>
+  
+  <Card title="3 Premium Agents" icon="star">
+    **$0.02 per call**
+    
+    - Tokenomics
+    - NFT
+    - Perp
+  </Card>
+  
+  <Card title="x402 Architecture" icon="handshake">
+    All agents use HTTP 402 payment protocol on Base Sepolia
+  </Card>
+</CardGroup>
+
+## Agent Catalog
+
+### Oracle Agent
+
+<Card title="Price Oracle" icon="chart-line">
+  **Price:** $0.01 per call
+  
+  **Agent ID:** `oracle`
+  
+  **Endpoints:**
+  - `GET /api/x402/oracle/price?symbol=BTC`
+  - `POST /api/x402/oracle/prices` (batch)
+</Card>
+
+#### What It Does
+
+Provides real-time cryptocurrency price data from CoinGecko, supporting 500+ tokens.
+
+<Tabs>
+  <Tab title="Features">
+    - **Token Prices**: Current USD price for any supported token
+    - **Market Data**: 24h price change, market cap, volume
+    - **Batch Queries**: Fetch multiple prices in one call
+    - **Symbol Mapping**: Supports common symbols (BTC, ETH, SOL, etc.)
+    - **Cache**: 30-second cache to reduce API costs
+  </Tab>
+
+  <Tab title="Example">
+    **Request:**
+    ```bash
+    GET /api/x402/oracle/price?symbol=BTC
+    ```
+    
+    **Response:**
+    ```json
+    {
+      "success": true,
+      "data": {
+        "symbol": "BTC",
+        "name": "Bitcoin",
+        "price": 97234.50,
+        "currency": "USD",
+        "change24h": 2.34,
+        "marketCap": 1920000000000,
+        "volume24h": 45000000000,
+        "lastUpdated": "2026-03-03T10:15:00Z"
+      },
+      "payment": {
+        "amount": "$0.01",
+        "network": "eip155:84532",
+        "payTo": "0xbaFF2E0939f89b53d4caE023078746C2eeA6E2F7"
+      }
+    }
+    ```
+  </Tab>
+
+  <Tab title="Supported Tokens">
+    **Top 50 by Market Cap:**
+    - Bitcoin (BTC), Ethereum (ETH), Tether (USDT), XRP, BNB
+    - Solana (SOL), Cardano (ADA), Dogecoin (DOGE), Avalanche (AVAX)
+    - Polkadot (DOT), Polygon (MATIC/POL), Chainlink (LINK)
+    - Uniswap (UNI), Litecoin (LTC), Cosmos (ATOM), Arbitrum (ARB)
+    
+    **DeFi:**
+    - Aave (AAVE), Curve (CRV), Compound (COMP), Synthetix (SNX)
+    - MakerDAO (MKR), Yearn (YFI), GMX, Pendle
+    
+    **Layer 2:**
+    - Optimism (OP), zkSync (ZK), Starknet (STRK), Mantle (MNT)
+    
+    **And 450+ more...**
+    
+    See `backend/src/services/price-oracle.ts` for full list.
+  </Tab>
+</Tabs>
+
+<Info>
+  **Data Source:** CoinGecko API (free tier, no API key required)
+</Info>
+
+---
+
+### Scout Agent
+
+<Card title="Chain Scout" icon="magnifying-glass">
+  **Price:** $0.01 per call
+  
+  **Agent ID:** `scout`
+  
+  **Endpoints:**
+  - `GET /api/x402/scout/analyze?address=0x...`
+  - `GET /api/x402/scout/gas`
+  - `GET /api/x402/scout/gas-estimate?operation=eth_transfer`
+  - `GET /api/x402/scout/dex?chain=ethereum`
+  - `GET /api/x402/scout/protocol?protocol=uniswap`
+  - `GET /api/x402/scout/bridges`
+  - `GET /api/x402/scout/hacks`
+</Card>
+
+#### What It Does
+
+Provides on-chain analytics, gas prices, wallet analysis, and DeFi protocol intelligence.
+
+<Tabs>
+  <Tab title="Wallet Analytics">
+    **Endpoint:** `/scout/analyze?address=0x...`
+    
+    Analyzes Ethereum wallets using Alchemy:
+    - Token balances and portfolio value
+    - NFT holdings
+    - Transaction history
+    - ENS domain resolution
+    
+    **Example Response:**
+    ```json
+    {
+      "address": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+      "ensName": "vitalik.eth",
+      "tokens": [
+        { "symbol": "ETH", "balance": "123.45", "value": 234567.89 },
+        { "symbol": "USDC", "balance": "50000", "value": 50000 }
+      ],
+      "nfts": [
+        { "collection": "Bored Ape Yacht Club", "count": 1 }
+      ],
+      "totalValue": 284567.89
+    }
+    ```
+  </Tab>
+
+  <Tab title="Gas & Fees">
+    **Current Gas Prices:** `/scout/gas`
+    
+    ```json
+    {
+      "slow": { "gwei": 20, "usd": 0.84 },
+      "standard": { "gwei": 25, "usd": 1.05 },
+      "fast": { "gwei": 30, "usd": 1.26 },
+      "instant": { "gwei": 35, "usd": 1.47 }
+    }
+    ```
+    
+    **Gas Estimates:** `/scout/gas-estimate?operation=swap`
+    
+    ```json
+    {
+      "operation": "uniswap_swap",
+      "estimatedGas": 180000,
+      "costs": {
+        "slow": { "eth": 0.0036, "usd": 8.64 },
+        "fast": { "eth": 0.0054, "usd": 12.96 }
+      }
+    }
+    ```
+  </Tab>
+
+  <Tab title="DeFi Intelligence">
+    **Protocol Stats:** `/scout/protocol?protocol=aave`
+    
+    ```json
+    {
+      "protocol": "Aave",
+      "tvl": 12500000000,
+      "tvlChange24h": 2.3,
+      "chains": ["ethereum", "polygon", "arbitrum", "optimism"],
+      "fees24h": 450000,
+      "revenue24h": 135000
+    }
+    ```
+    
+    **DEX Volume:** `/scout/dex?chain=ethereum`
+    
+    ```json
+    {
+      "chain": "ethereum",
+      "totalVolume24h": 3200000000,
+      "topDexs": [
+        { "name": "Uniswap", "volume24h": 1800000000 },
+        { "name": "Curve", "volume24h": 890000000 }
+      ]
+    }
+    ```
+  </Tab>
+
+  <Tab title="Security">
+    **Bridge Activity:** `/scout/bridges`
+    
+    ```json
+    {
+      "topBridges": [
+        { "name": "Stargate", "volume24h": 45000000, "chains": 7 },
+        { "name": "Across", "volume24h": 32000000, "chains": 5 }
+      ]
+    }
+    ```
+    
+    **Recent Hacks:** `/scout/hacks`
+    
+    ```json
+    {
+      "recentHacks": [
+        {
+          "date": "2026-03-01",
+          "protocol": "Example Protocol",
+          "amount": 5000000,
+          "type": "Smart Contract Exploit"
+        }
+      ]
+    }
+    ```
+  </Tab>
+</Tabs>
+
+<Info>
+  **Data Sources:** Alchemy API (wallet analytics), Etherscan (gas), DeFiLlama (protocols, TVL)
+</Info>
+
+---
+
+### News Agent
+
+<Card title="News Scout" icon="newspaper">
+  **Price:** $0.01 per call
+  
+  **Agent ID:** `news`
+  
+  **Endpoints:**
+  - `GET /api/x402/news/latest?limit=10`
+  - `GET /api/x402/news/search?query=bitcoin&limit=10`
+  - `GET /api/x402/news/breaking`
+  - `GET /api/x402/news/trending`
+</Card>
+
+#### What It Does
+
+Aggregates real-time crypto news from multiple sources with sentiment analysis and trending topics.
+
+<Tabs>
+  <Tab title="Latest News">
+    **Endpoint:** `/news/latest?limit=10`
+    
+    Returns the most recent crypto news articles:
+    
+    ```json
+    {
+      "articles": [
+        {
+          "title": "Bitcoin Surges Past $97K on ETF Inflows",
+          "link": "https://...",
+          "description": "Bitcoin reached new highs today...",
+          "pubDate": "2026-03-03T10:30:00Z",
+          "source": "CoinDesk",
+          "category": "Market",
+          "timeAgo": "5m ago"
+        }
+      ],
+      "totalCount": 247,
+      "sources": ["CoinDesk", "Decrypt", "The Block"],
+      "fetchedAt": "2026-03-03T10:35:00Z"
+    }
+    ```
+  </Tab>
+
+  <Tab title="Search & Filter">
+    **Endpoint:** `/news/search?query=ethereum&limit=5`
+    
+    Search news by keyword:
+    
+    ```json
+    {
+      "articles": [
+        {
+          "title": "Ethereum Gas Fees Drop to 6-Month Low",
+          "description": "Layer 2 adoption driving efficiency...",
+          "source": "CoinTelegraph",
+          "timeAgo": "2h ago"
+        }
+      ]
+    }
+    ```
+    
+    **Common Queries:**
+    - `defi` - DeFi protocol news
+    - `regulation` - Regulatory updates
+    - `hack` - Security incidents
+    - Token symbols (BTC, ETH, SOL)
+  </Tab>
+
+  <Tab title="Breaking News">
+    **Endpoint:** `/news/breaking`
+    
+    Returns high-priority news from the last 15 minutes:
+    
+    ```json
+    {
+      "articles": [
+        {
+          "title": "🚨 Major Exchange Announces USDC Support",
+          "pubDate": "2026-03-03T10:20:00Z",
+          "timeAgo": "15m ago"
+        }
+      ]
+    }
+    ```
+  </Tab>
+
+  <Tab title="Trending Topics">
+    **Endpoint:** `/news/trending`
+    
+    Sentiment analysis on trending topics:
+    
+    ```json
+    {
+      "trending": [
+        {
+          "topic": "Bitcoin ETF",
+          "count": 45,
+          "sentiment": "bullish",
+          "recentHeadlines": [
+            "Bitcoin ETF Sees Record Inflows"
+          ]
+        },
+        {
+          "topic": "Ethereum Upgrade",
+          "count": 32,
+          "sentiment": "neutral"
+        }
+      ],
+      "timeWindow": "24h",
+      "articlesAnalyzed": 892
+    }
+    ```
+  </Tab>
+</Tabs>
+
+<Info>
+  **Data Source:** cryptocurrency.cv API (free, no API key required)
+</Info>
+
+---
+
+### Yield Agent
+
+<Card title="Yield Optimizer" icon="percent">
+  **Price:** $0.01 per call
+  
+  **Agent ID:** `yield`
+  
+  **Endpoints:**
+  - `GET /api/x402/yield/top?chain=ethereum&limit=20`
+  - `GET /api/x402/yield/asset?token=ETH`
+</Card>
+
+#### What It Does
+
+Aggregates DeFi yield opportunities from 7 major protocols across all chains with risk scoring.
+
+<Tabs>
+  <Tab title="Top Yields">
+    **Endpoint:** `/yield/top?minApy=5&limit=20`
+    
+    Returns best yield opportunities with risk assessment:
+    
+    ```json
+    {
+      "opportunities": [
+        {
+          "protocol": "Lido",
+          "name": "stETH Staking",
+          "asset": "ETH → stETH",
+          "apy": 3.2,
+          "tvl": 30000000000,
+          "chain": "ethereum",
+          "risk": "LOW",
+          "type": "staking",
+          "url": "https://stake.lido.fi"
+        },
+        {
+          "protocol": "Aave",
+          "name": "USDC Supply",
+          "asset": "USDC",
+          "apy": 4.8,
+          "chain": "ethereum",
+          "risk": "LOW",
+          "type": "lending",
+          "url": "https://app.aave.com/reserve-overview/?underlyingAsset=0xa0b86991..."
+        }
+      ],
+      "totalCount": 347,
+      "fetchedAt": "2026-03-03T10:40:00Z"
+    }
+    ```
+  </Tab>
+
+  <Tab title="Filters">
+    **Query Parameters:**
+    
+    - `chain`: ethereum, polygon, arbitrum, optimism, base
+    - `minApy`: Minimum APY percentage (e.g., 5)
+    - `maxApy`: Maximum APY percentage
+    - `type`: staking, lending, vault, lp, fixed
+    - `protocol`: lido, aave, yearn, curve, beefy, pendle
+    - `limit`: Number of results (default 20)
+    
+    **Example:**
+    ```bash
+    GET /yield/top?chain=arbitrum&type=lending&minApy=3&limit=10
+    ```
+  </Tab>
+
+  <Tab title="Risk Scoring">
+    **Risk Levels:**
+    
+    <AccordionGroup>
+      <Accordion title="LOW Risk" icon="circle-check">
+        - Tier 1 protocols (Lido, Aave, Pendle)
+        - $1B+ TVL
+        - Multiple audits
+        - Staking or lending yields
+        - APY < 15%
+        
+        **Examples:** Lido stETH (3.2%), Aave USDC (4.8%)
+      </Accordion>
+      
+      <Accordion title="MEDIUM Risk" icon="circle-exclamation">
+        - Tier 2 protocols (Yearn, Curve)
+        - $100M-$1B TVL
+        - Some audit history
+        - APY 15-30%
+        
+        **Examples:** Curve 3pool (7.5%), Yearn vaults (12%)
+      </Accordion>
+      
+      <Accordion title="HIGH Risk" icon="triangle-exclamation">
+        - New or unaudited protocols
+        - Less than $100M TVL
+        - LP pools with impermanent loss risk
+        - APY greater than 30% (likely unsustainable)
+        
+        **Examples:** New farms, meme token LPs
+      </Accordion>
+    </AccordionGroup>
+  </Tab>
+
+  <Tab title="Protocols">
+    **Integrated Sources:**
+    
+    1. **Lido** - Ethereum staking (~$30B TVL)
+    2. **Aave** - Multi-chain lending (~$12B TVL)
+    3. **Yearn** - Automated vaults (~$500M TVL)
+    4. **Curve** - Stablecoin LPs (~$2B TVL)
+    5. **Beefy** - Multi-chain vaults
+    6. **Pendle** - Fixed yield markets
+    7. **Turtle** - Yield aggregator
+    
+    See `backend/src/services/yield-optimizer.ts` for implementation.
+  </Tab>
+</Tabs>
+
+<Info>
+  **Data Sources:** Direct protocol APIs + DeFiLlama yield aggregation
+</Info>
+
+---
+
+### Tokenomics Agent
+
+<Card title="Tokenomics Analyzer" icon="coins">
+  **Price:** $0.02 per call
+  
+  **Agent ID:** `tokenomics`
+  
+  **Endpoints:**
+  - `GET /api/x402/tokenomics/analyze?symbol=ARB`
+</Card>
+
+#### What It Does
+
+Analyzes token supply, vesting schedules, unlock events, and allocation breakdowns for 200+ tokens.
+
+<Tabs>
+  <Tab title="Supply Analysis">
+    **Endpoint:** `/tokenomics/analyze?symbol=ARB`
+    
+    ```json
+    {
+      "symbol": "ARB",
+      "name": "Arbitrum",
+      "supply": {
+        "circulating": 2500000000,
+        "total": 10000000000,
+        "max": 10000000000,
+        "circulatingFormatted": "2.50B",
+        "totalFormatted": "10.00B",
+        "maxFormatted": "10.00B",
+        "percentUnlocked": 25.0
+      },
+      "inflation": {
+        "annualRate": "~21.4%",
+        "fullyDilutedBy": "~2029"
+      }
+    }
+    ```
+  </Tab>
+
+  <Tab title="Unlock Events">
+    **Next Unlock:**
+    
+    ```json
+    {
+      "nextUnlock": {
+        "date": "2026-03-15",
+        "amount": 92500000,
+        "amountFormatted": "92.50M",
+        "percentOfCirculating": 3.7,
+        "recipient": "Team & Advisors",
+        "riskLevel": "🟠 MEDIUM - Noticeable selling pressure likely"
+      }
+    }
+    ```
+    
+    **Upcoming Schedule:**
+    
+    ```json
+    {
+      "upcomingUnlocks": [
+        {
+          "date": "2026-03-15",
+          "amountFormatted": "92.50M",
+          "percentOfCirculating": 3.7,
+          "riskLevel": "🟠 MEDIUM"
+        },
+        {
+          "date": "2026-06-15",
+          "amountFormatted": "185.00M",
+          "percentOfCirculating": 7.4,
+          "riskLevel": "🔴 HIGH - Major unlock"
+        }
+      ]
+    }
+    ```
+  </Tab>
+
+  <Tab title="Allocations">
+    **Token Distribution:**
+    
+    ```json
+    {
+      "allocations": [
+        { "category": "DAO Treasury", "percentage": 42.78 },
+        { "category": "Team & Advisors", "percentage": 26.94 },
+        { "category": "Investors", "percentage": 17.53 },
+        { "category": "Community (Airdrop)", "percentage": 11.62 }
+      ]
+    }
+    ```
+    
+    **Hardcoded for Major Tokens:**
+    - Arbitrum (ARB)
+    - Optimism (OP)
+    - Polygon (MATIC/POL)
+    - Sui (SUI)
+    - Aptos (APT)
+    - Celestia (TIA)
+    - Monad (MON)
+  </Tab>
+
+  <Tab title="Supported Tokens">
+    **200+ Tokens Including:**
+    
+    **Layer 1/Layer 2:**
+    - Ethereum (ETH), Solana (SOL), Avalanche (AVAX)
+    - Arbitrum (ARB), Optimism (OP), Polygon (MATIC)
+    - zkSync (ZK), Starknet (STRK), Scroll (SCR)
+    
+    **DeFi:**
+    - Uniswap (UNI), Aave (AAVE), Curve (CRV)
+    - Lido (LDO), MakerDAO (MKR), Compound (COMP)
+    
+    **New Projects:**
+    - Monad (MON), Berachain (BERA), Movement (MOVE)
+    - Hyperliquid (HYPE), Sonic, Blur
+    
+    See `backend/src/services/tokenomics-service.ts` for full list.
+  </Tab>
+</Tabs>
+
+<Warning>
+  **Premium Agent:** Charges $0.02 per call due to multiple API requests and complex data aggregation.
+</Warning>
+
+<Info>
+  **Data Sources:** CoinGecko (supply data), Mobula (vesting schedules), hardcoded allocations for major tokens
+</Info>
+
+---
+
+### NFT Agent
+
+<Card title="NFT Scout" icon="image">
+  **Price:** $0.02 per call
+  
+  **Agent ID:** `nft`
+  
+  **Endpoints:**
+  - `GET /api/x402/scout/nft/:slug`
+  - `GET /api/x402/scout/search?q=pudgy+penguins`
+</Card>
+
+#### What It Does
+
+Provides NFT collection analytics, floor prices, sales trends, and recent activity from OpenSea.
+
+<Tabs>
+  <Tab title="Collection Analytics">
+    **Endpoint:** `/scout/nft/boredapeyachtclub`
+    
+    ```json
+    {
+      "slug": "boredapeyachtclub",
+      "name": "Bored Ape Yacht Club",
+      "description": "The Bored Ape Yacht Club is a collection of 10,000 unique Bored Ape NFTs...",
+      "floor_price": 32.5,
+      "floor_price_symbol": "ETH",
+      "volume_total": 1250000,
+      "num_owners": 5834,
+      "market_cap": 325000,
+      "image_url": "https://...",
+      "opensea_url": "https://opensea.io/collection/boredapeyachtclub",
+      "sales_trend": "up"
+    }
+    ```
+  </Tab>
+
+  <Tab title="Recent Sales">
+    **Included in Analytics Response:**
+    
+    ```json
+    {
+      "recent_sales": [
+        {
+          "nft_name": "Bored Ape #1234",
+          "price": 35.2,
+          "symbol": "ETH",
+          "date": "2026-03-03T09:45:00Z",
+          "tx_hash": "0x..."
+        },
+        {
+          "nft_name": "Bored Ape #5678",
+          "price": 33.8,
+          "symbol": "ETH",
+          "date": "2026-03-03T08:30:00Z",
+          "tx_hash": "0x..."
+        }
+      ]
+    }
+    ```
+    
+    **Sales Trend Algorithm:**
+    - Compare average of 3 most recent sales vs 7 older sales
+    - `up` if recent avg > 5% higher
+    - `down` if recent avg > 5% lower
+    - `neutral` otherwise
+  </Tab>
+
+  <Tab title="Search Collections">
+    **Endpoint:** `/scout/search?q=pudgy`
+    
+    Returns matching collections:
+    
+    ```json
+    {
+      "collections": [
+        {
+          "collection": "pudgypenguins",
+          "name": "Pudgy Penguins",
+          "slug": "pudgypenguins",
+          "image_url": "https://..."
+        },
+        {
+          "collection": "lilpudgys",
+          "name": "Lil Pudgys",
+          "slug": "lilpudgys",
+          "image_url": "https://..."
+        }
+      ]
+    }
+    ```
+    
+    **Smart Slug Fallback:**
+    If OpenSea search fails, tries common slug patterns:
+    - `pudgypenguins` (no spaces)
+    - `pudgy-penguins` (hyphenated)
+    - `pudgy` (partial match)
+  </Tab>
+
+  <Tab title="Popular Collections">
+    **Example Slugs:**
+    
+    - `boredapeyachtclub` - Bored Ape Yacht Club
+    - `mutant-ape-yacht-club` - MAYC
+    - `azuki` - Azuki
+    - `clonex` - CloneX
+    - `cryptopunks` - CryptoPunks
+    - `pudgypenguins` - Pudgy Penguins
+    - `doodles-official` - Doodles
+    - `proof-moonbirds` - Moonbirds
+    
+    <Note>
+      Use `/scout/search?q=...` if you're unsure of the exact slug.
+    </Note>
+  </Tab>
+</Tabs>
+
+<Warning>
+  **OpenSea API Key Required:** This agent requires an OpenSea API key (set `OPENSEA_API_KEY` in backend `.env`).
+</Warning>
+
+<Info>
+  **Data Source:** OpenSea API v2
+</Info>
+
+---
+
+### Perp Agent
+
+<Card title="Perp Stats" icon="chart-candlestick">
+  **Price:** $0.02 per call
+  
+  **Agent ID:** `perp`
+  
+  **Endpoints:**
+  - `GET /api/x402/perp/markets`
+  - `GET /api/x402/perp/global`
+</Card>
+
+#### What It Does
+
+Aggregates perpetual futures market data from 6 major decentralized exchanges.
+
+<Tabs>
+  <Tab title="Market Data">
+    **Endpoint:** `/perp/markets`
+    
+    Returns all available perp markets:
+    
+    ```json
+    {
+      "success": true,
+      "data": [
+        {
+          "exchange": "Hyperliquid",
+          "symbol": "BTC-USD",
+          "markPrice": 97234.50,
+          "indexPrice": 97230.25,
+          "fundingRate": 0.0001,
+          "openInterestUsd": 1250000000,
+          "volume24h": 3200000000,
+          "priceChange24h": 2.34,
+          "maxLeverage": 50,
+          "url": "https://app.hyperliquid.xyz/trade/BTC"
+        },
+        {
+          "exchange": "dYdX",
+          "symbol": "ETH-USD",
+          "markPrice": 3456.78,
+          "fundingRate": 0.00008,
+          "openInterestUsd": 890000000,
+          "volume24h": 1800000000
+        }
+      ],
+      "meta": {
+        "count": 247,
+        "sources": ["Hyperliquid", "dYdX", "Paradex", "Lighter", "Pacifica", "EdgeX"]
+      }
+    }
+    ```
+  </Tab>
+
+  <Tab title="Global Stats">
+    **Endpoint:** `/perp/global`
+    
+    Aggregated market statistics:
+    
+    ```json
+    {
+      "success": true,
+      "data": {
+        "totalVolume24h": 8900000000,
+        "totalOpenInterestUsd": 4200000000,
+        "activeExchanges": [
+          "Hyperliquid",
+          "dYdX",
+          "Paradex",
+          "Lighter",
+          "Pacifica",
+          "EdgeX"
+        ],
+        "marketCount": 247
+      }
+    }
+    ```
+  </Tab>
+
+  <Tab title="Supported Exchanges">
+    **Integrated DEXs:**
+    
+    <AccordionGroup>
+      <Accordion title="Hyperliquid" icon="rocket">
+        - Largest on-chain perp DEX
+        - 100+ markets
+        - Up to 50x leverage
+        - Native L1 blockchain
+      </Accordion>
+      
+      <Accordion title="dYdX" icon="chart-line">
+        - Cosmos-based L1
+        - 50+ markets
+        - Professional trading UI
+        - Deep liquidity
+      </Accordion>
+      
+      <Accordion title="Paradex" icon="cube">
+        - StarkEx-based
+        - 40+ markets
+        - Low fees
+      </Accordion>
+      
+      <Accordion title="Lighter" icon="feather">
+        - Minimalist design
+        - Gas-efficient
+      </Accordion>
+      
+      <Accordion title="Pacifica" icon="water">
+        - Emerging protocol
+        - Unique market structure
+      </Accordion>
+      
+      <Accordion title="EdgeX" icon="border-all">
+        - Partial support
+        - Metadata only
+      </Accordion>
+    </AccordionGroup>
+  </Tab>
+
+  <Tab title="Data Fields">
+    **Market Object:**
+    
+    ```typescript
+    interface PerpMarket {
+      exchange: string;           // "Hyperliquid"
+      symbol: string;             // "BTC-USD"
+      markPrice?: number;         // Current mark price
+      indexPrice?: number;        // Index price (spot reference)
+      fundingRate?: number;       // 8-hour funding rate
+      openInterestUsd?: number;   // Total open interest in USD
+      volume24h?: number;         // 24h trading volume in USD
+      priceChange24h?: number;    // 24h price change %
+      maxLeverage?: number;       // Maximum leverage available
+      url?: string;               // Direct trading link
+    }
+    ```
+    
+    <Note>
+      Not all fields available from all exchanges. Missing fields return `undefined`.
+    </Note>
+  </Tab>
+</Tabs>
+
+<Warning>
+  **Premium Agent:** Charges $0.02 per call due to multiple exchange API requests and data normalization.
+</Warning>
+
+<Info>
+  **Data Sources:** Direct APIs from Hyperliquid, dYdX, Paradex, Lighter, Pacifica, EdgeX
+</Info>
+
+---
+
+## Agent Discovery
+
+### How Gemini Selects Agents
+
+When a user asks a question, Gemini analyzes the intent and selects appropriate agents:
+
+<Steps>
+  <Step title="Intent Analysis">
+    Gemini identifies keywords and intent:
+    - Price/market → **Oracle**
+    - Gas/wallet/on-chain → **Scout**
+    - News/headlines → **News**
+    - Yield/APY/staking → **Yield**
+    - Supply/vesting/unlocks → **Tokenomics**
+    - NFT/collection → **NFT**
+    - Perp/futures/leverage → **Perp**
+  </Step>
+
+  <Step title="Multi-Agent Queries">
+    Some queries need multiple agents:
+    - "What's ETH price and yield?" → **Oracle + Yield**
+    - "BTC price and recent news" → **Oracle + News**
+    - "ARB tokenomics and unlock schedule" → **Tokenomics**
+  </Step>
+
+  <Step title="Fallback Handling">
+    If agent call fails:
+    - Try alternative provider if available
+    - Return partial response
+    - Inform user which agents failed
+  </Step>
+</Steps>
+
+### Agent Health Monitoring
+
+The backend tracks agent performance:
+
+<CardGroup cols={3}>
+  <Card title="Success Rate" icon="chart-line">
+    Percentage of successful calls (200-299 status)
+  </Card>
+  <Card title="Latency" icon="clock">
+    Average response time in milliseconds
+  </Card>
+  <Card title="Circuit Breaker" icon="power-off">
+    Auto-disable after 3 consecutive failures
+  </Card>
+</CardGroup>
+
+**Dashboard View:**
+
+```json
+{
+  "agent": "oracle",
+  "status": "healthy",
+  "stats": {
+    "calls": 1247,
+    "successes": 1235,
+    "failures": 12,
+    "successRate": 99.04,
+    "avgLatencyMs": 245,
+    "circuitOpen": false
+  },
+  "lastSeen": "2026-03-03T10:45:00Z"
+}
+```
+
+## Policy Controls
+
+Admins can control agent behavior via policy endpoints:
+
+<Tabs>
+  <Tab title="Freeze Agent">
+    **Temporarily disable an agent:**
+    
+    ```bash
+    POST /admin/policy/oracle/freeze
+    x-admin-key: your-admin-key
+    
+    {
+      "frozen": true
+    }
+    ```
+    
+    Frozen agents:
+    - Reject all new calls with 403
+    - Show "FROZEN" badge in dashboard
+    - Can be reactivated by setting `frozen: false`
+  </Tab>
+
+  <Tab title="Spend Limits">
+    **Set per-call and daily limits:**
+    
+    ```bash
+    PATCH /admin/policy/oracle
+    x-admin-key: your-admin-key
+    
+    {
+      "dailyLimitUsd": "1.00",
+      "perCallLimitUsd": "0.05"
+    }
+    ```
+    
+    Limits enforced before each agent call.
+  </Tab>
+
+  <Tab title="Allowlists">
+    **Restrict endpoints and recipients:**
+    
+    ```bash
+    PATCH /admin/policy/oracle
+    x-admin-key: your-admin-key
+    
+    {
+      "endpointAllowlist": [
+        "/api/x402/oracle/price",
+        "/api/x402/oracle/prices"
+      ],
+      "payToAllowlist": [
+        "0xbaFF2E0939f89b53d4caE023078746C2eeA6E2F7"
+      ]
+    }
+    ```
+    
+    Calls to non-allowlisted endpoints are blocked.
+  </Tab>
+
+  <Tab title="View Policy">
+    **Get current policy:**
+    
+    ```bash
+    GET /admin/policy/oracle
+    x-admin-key: your-admin-key
+    
+    {
+      "agentId": "oracle",
+      "frozen": false,
+      "dailyLimitUsd": "1.00",
+      "perCallLimitUsd": "0.05",
+      "endpointAllowlist": [...],
+      "payToAllowlist": [...],
+      "updatedAt": "2026-03-03T10:50:00Z"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Cost Comparison
+
+### Example Query Breakdown
+
+**User Query:** "What's the price of Bitcoin, recent BTC news, and best yield for BTC?"
+
+| Payment | From | To | Amount | Purpose |
+|---------|------|-----|--------|----------|
+| 1️⃣ User Payment | User | Backend | **$0.03** | Query processing |
+| 2️⃣ Oracle Call | Backend | Oracle Agent | $0.01 | BTC price |
+| 3️⃣ News Call | Backend | News Agent | $0.01 | BTC news |
+| 4️⃣ Yield Call | Backend | Yield Agent | $0.01 | BTC yield |
+| **Total** | | | **$0.06** | **End-to-end cost** |
+
+<Info>
+  Backend keeps $0.03 - $0.03 = **$0.00** margin (covers Gemini API and infrastructure).
+</Info>
+
+### Pricing Philosophy
+
+<Card title="Why These Prices?">
+  - **$0.01-$0.02**: Low enough for frequent queries
+  - **Transparent**: Users see exactly which agents were called
+  - **Sustainable**: Agents cover their API costs
+  - **Incentive-Aligned**: Quality agents get more calls
+  - **Testnet**: Real pricing on testnet validates the model
+</Card>
+
+## Future Agents
+
+Potential new agents for the marketplace:
+
+<CardGroup cols={2}>
+  <Card title="Social Agent" icon="users">
+    Track influencer sentiment, Twitter trends, Farcaster activity
+  </Card>
+  <Card title="Whale Tracker" icon="whale">
+    Monitor large wallet movements and exchange flows
+  </Card>
+  <Card title="MEV Agent" icon="bolt">
+    MEV opportunities and sandwich attack alerts
+  </Card>
+  <Card title="DAO Agent" icon="landmark">
+    DAO proposal tracking and governance analytics
+  </Card>
+  <Card title="Airdrop Scout" icon="parachute-box">
+    Upcoming airdrops and eligibility checker
+  </Card>
+  <Card title="Bridge Agent" icon="bridge">
+    Cross-chain bridge comparison and routing
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="x402 Protocol" icon="credit-card" href="/concepts/x402-protocol">
+    Learn how agents implement x402 payment endpoints
+  </Card>
+  <Card title="Payment Flow" icon="money-bill-transfer" href="/concepts/payment-flow">
+    See how payments flow from users to agents
+  </Card>
+  <Card title="Architecture" icon="diagram-project" href="/concepts/architecture">
+    Understand the complete system architecture
+  </Card>
+</CardGroup>

@@ -1,0 +1,245 @@
+---
+title: 'Making Queries'
+description: 'Learn how to submit queries to AI agents and make payments on the Arcana x402 Agent Marketplace'
+---
+
+## Overview
+
+The Arcana x402 Agent Marketplace allows you to interact with specialized AI agents through a simple chat interface. Each query costs **$0.03 USDC** on Base Sepolia, paid directly from your wallet.
+
+<Note>
+  All payments are made in USDC on Base Sepolia testnet. Make sure you have both test ETH (for gas) and test USDC in your wallet.
+</Note>
+
+## Getting Started
+
+<Steps>
+  <Step title="Connect Your Wallet">
+    Click the **Connect Wallet** button in the top right corner and connect your Base Sepolia wallet (MetaMask, Coinbase Wallet, WalletConnect, etc.).
+  </Step>
+  
+  <Step title="Ensure Sufficient Balance">
+    Make sure your wallet has:
+    - Test ETH for gas fees (~$0.001 per transaction)
+    - Test USDC for query payments ($0.03 per query)
+  </Step>
+  
+  <Step title="Navigate to Chat">
+    Click on the **Chat** tab in the sidebar to access the main query interface.
+  </Step>
+</Steps>
+
+## Submitting a Query
+
+### Text Queries
+
+Simply type your question in the chat input at the bottom of the screen and press **Enter** or click the send button.
+
+**Example queries:**
+- "What's the current price of ETH?"
+- "Show me the top DeFi yield opportunities"
+- "What's the floor price for Bored Ape Yacht Club?"
+- "What are the latest crypto news headlines?"
+
+### Image Queries
+
+Arcana supports image-based queries for chart analysis, screenshot analysis, and more.
+
+<Tabs>
+  <Tab title="Upload Image">
+    1. Click the **+** button next to the chat input
+    2. Select an image file (max 10MB)
+    3. Add an optional text prompt describing what you want to know
+    4. Press **Enter** to send
+  </Tab>
+  
+  <Tab title="Paste Image">
+    1. Copy an image to your clipboard (Ctrl+C / Cmd+C)
+    2. Click in the chat input box
+    3. Paste the image (Ctrl+V / Cmd+V)
+    4. Add an optional text prompt
+    5. Press **Enter** to send
+  </Tab>
+</Tabs>
+
+<Tip>
+  Image queries are great for analyzing trading charts, tokenomics diagrams, or asking questions about visual data.
+</Tip>
+
+## Payment Flow
+
+Every query follows this payment flow:
+
+<Steps>
+  <Step title="Submit Query">
+    When you send a query, your wallet will prompt you to approve a **$0.03 USDC** transfer.
+  </Step>
+  
+  <Step title="Confirm Payment">
+    Approve the transaction in your wallet. The payment is a direct USDC transfer on Base Sepolia.
+  </Step>
+  
+  <Step title="Wait for Confirmation">
+    The interface shows "Waiting for payment confirmation..." while the transaction is being mined (typically 2-5 seconds).
+  </Step>
+  
+  <Step title="Processing">
+    Once payment is confirmed, the AI orchestrator analyzes your query and calls the appropriate agent tools.
+  </Step>
+  
+  <Step title="Receive Response">
+    The AI response appears in the chat, showing which agents were used and the total internal spend.
+  </Step>
+</Steps>
+
+## Agent Selection
+
+The AI orchestrator automatically selects the best agents for your query:
+
+<Card title="Price Oracle" icon="dollar-sign">
+  **Price:** $0.01 per call  
+  Real-time cryptocurrency prices from CoinGecko (BTC, ETH, SOL, 100+ tokens)
+</Card>
+
+<Card title="Chain Scout" icon="chart-line">
+  **Price:** $0.01 per call  
+  Wallet analytics, protocol TVL, DEX volume, bridges, exploit tracking
+</Card>
+
+<Card title="News Scout" icon="newspaper">
+  **Price:** $0.01 per call  
+  Real-time crypto news, sentiment analysis, trending topics
+</Card>
+
+<Card title="Yield Optimizer" icon="percentage">
+  **Price:** $0.01 per call  
+  DeFi yield aggregator (Lido, Yearn, Beefy, Curve, Aave, Pendle)
+</Card>
+
+<Card title="Tokenomics Analyzer" icon="coins">
+  **Price:** $0.02 per call  
+  Token supply, vesting schedules, unlock events, inflation rates
+</Card>
+
+<Card title="NFT Scout" icon="image">
+  **Price:** $0.02 per call  
+  NFT collection analytics, floor prices, volume trends, sales history
+</Card>
+
+<Card title="Universal Perp Stats" icon="trending-up">
+  **Price:** $0.02 per call  
+  Aggregated funding rates, open interest, volume from Hyperliquid, dYdX, etc.
+</Card>
+
+<Note>
+  Your $0.03 user payment covers the query processing. Agents charge $0.01-$0.02 per internal call, which are paid automatically via x402 protocol.
+</Note>
+
+## Budget and Spend Tracking
+
+Each chat session has a **$1.00 default budget** for internal agent calls.
+
+### Viewing Your Spend
+
+1. Navigate to the **Dashboard** page
+2. Select an agent from the **Providers** page (or view aggregate stats)
+3. View the **Spend Summary** card showing:
+   - Total spent in current session
+   - Budget limit
+   - Remaining budget
+   - Number of paid calls
+
+### Receipts
+
+The **Receipts** card shows detailed payment records:
+- Agent ID (oracle, scout, news, etc.)
+- Endpoint called
+- Amount paid (in USD)
+- Transaction hash (Base Sepolia)
+- Settlement details
+
+<Tip>
+  Click on any transaction hash to view it on BaseScan block explorer.
+</Tip>
+
+## Session Management
+
+Chat sessions persist across page reloads and are stored in Supabase.
+
+### Creating a New Session
+
+Click the **New Chat** button in the sidebar to start a fresh conversation with a new budget.
+
+### Viewing Past Sessions
+
+All your chat sessions are listed in the sidebar:
+- Click a session to load its message history
+- View spend summary for each session
+- Delete old sessions you no longer need
+
+## Troubleshooting
+
+<Warning>
+  **Payment Failed**: If your payment transaction fails, the query will not be processed. Common causes:
+  - Insufficient USDC balance
+  - Insufficient ETH for gas
+  - Transaction rejected in wallet
+  - Network congestion
+</Warning>
+
+### Common Issues
+
+**Query submitted but no response**
+- Check if the payment transaction was confirmed on BaseScan
+- Ensure you have a stable internet connection
+- Refresh the page and check if the response appears
+
+**"Payment Confirmed, but AI Generation failed"**
+- Your payment was successful, but the AI orchestrator encountered an error
+- The blockchain transaction is irreversible, but you can contact support
+- This is rare and usually caused by external API timeouts
+
+**Agent not responding**
+- Some agents may be temporarily frozen by admins (check Providers page)
+- External data sources may be experiencing downtime
+- Try rephrasing your query to use different agents
+
+**Wallet not connecting**
+- Ensure you're on Base Sepolia network (Chain ID: 84532)
+- Try a different wallet provider
+- Clear browser cache and reconnect
+
+## Best Practices
+
+<Tip>
+  **Be Specific**: The more specific your query, the better the AI can route it to the right agents. Instead of "crypto prices", try "show me ETH and BTC prices with 24h change".
+</Tip>
+
+- **Start Simple**: Test with a basic query to ensure your wallet and payment flow are working
+- **Check Agent Status**: Visit the Providers page to see which agents are active
+- **Monitor Your Budget**: Keep an eye on the Spend Summary to avoid hitting the session limit
+- **Use Images Wisely**: Image queries cost the same as text, so use them when visual analysis adds value
+- **Keep Sessions Organized**: Create new sessions for different topics or use cases
+
+## Rate Limits
+
+The platform enforces rate limits to prevent abuse:
+- **10 queries per minute** per IP address
+- **100 general requests per 15 minutes** per IP address
+- **30 admin actions per minute** (if you're an agent owner)
+
+<Note>
+  If you hit a rate limit, wait a few minutes and try again. Rate limits reset automatically.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Agent Providers" icon="users" href="/guides/agent-providers">
+    Learn about different AI agents and their capabilities
+  </Card>
+  
+  <Card title="Policy Controls" icon="shield" href="/guides/policy-controls">
+    Understand admin policy controls for agent owners
+  </Card>
+</CardGroup>

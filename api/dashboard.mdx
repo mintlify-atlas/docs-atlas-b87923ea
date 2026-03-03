@@ -1,0 +1,654 @@
+---
+title: 'Dashboard APIs'
+description: 'Agent statistics, activity feeds, and admin controls'
+icon: 'chart-line'
+---
+
+## GET /dashboard/stats
+
+Retrieve statistics for a specific agent or aggregate marketplace stats.
+
+### Query Parameters
+
+<ParamField query="agentId" type="string">
+  Agent ID to fetch stats for. If omitted, returns aggregate stats.
+  
+  **Options:** `oracle`, `scout`, `news`, `yield`, `tokenomics`, `nft`, `perp`
+</ParamField>
+
+### Response Fields
+
+<Tabs>
+  <Tab title="Agent-Specific Stats">
+    When `agentId` is provided:
+    
+    <ResponseField name="agentId" type="string" required>
+      The agent identifier.
+    </ResponseField>
+    
+    <ResponseField name="agentName" type="string" required>
+      Human-readable agent name.
+    </ResponseField>
+    
+    <ResponseField name="wallet" type="string" required>
+      Payment receiving wallet address.
+    </ResponseField>
+    
+    <ResponseField name="treasury" type="string" required>
+      Current USDC balance in the agent's wallet.
+    </ResponseField>
+    
+    <ResponseField name="tasksCompleted" type="number" required>
+      Total number of successful queries processed.
+    </ResponseField>
+    
+    <ResponseField name="rating" type="number" required>
+      Average user rating (0-5 scale).
+    </ResponseField>
+    
+    <ResponseField name="totalRatings" type="number" required>
+      Total number of ratings received.
+    </ResponseField>
+    
+    <ResponseField name="avgResponseTime" type="string" required>
+      Average response time in human-readable format.
+    </ResponseField>
+    
+    <ResponseField name="isFrozen" type="boolean" required>
+      Whether the agent is frozen by policy.
+    </ResponseField>
+  </Tab>
+  
+  <Tab title="Aggregate Stats">
+    When `agentId` is omitted:
+    
+    <ResponseField name="treasury" type="string" required>
+      Total balance across all agents in ETH.
+    </ResponseField>
+    
+    <ResponseField name="tasksCompleted" type="number" required>
+      Total tasks completed across all agents.
+    </ResponseField>
+    
+    <ResponseField name="isFrozen" type="boolean" required>
+      Always `false` for aggregate stats.
+    </ResponseField>
+  </Tab>
+</Tabs>
+
+### Examples
+
+<CodeGroup>
+
+```bash Agent Stats
+curl "http://localhost:3001/dashboard/stats?agentId=oracle"
+```
+
+```bash Aggregate Stats
+curl http://localhost:3001/dashboard/stats
+```
+
+```javascript JavaScript
+const response = await fetch(
+  'http://localhost:3001/dashboard/stats?agentId=oracle'
+);
+const data = await response.json();
+
+console.log(`${data.agentName} Treasury: $${data.treasury}`);
+console.log(`Tasks Completed: ${data.tasksCompleted}`);
+console.log(`Rating: ${data.rating}/5 (${data.totalRatings} ratings)`);
+```
+
+</CodeGroup>
+
+### Response Example
+
+```json Agent-Specific Response
+{
+  "agentId": "oracle",
+  "agentName": "Price Oracle Agent",
+  "wallet": "0x1234567890abcdef1234567890abcdef12345678",
+  "treasury": "124.56",
+  "tasksCompleted": 1247,
+  "rating": 4.8,
+  "totalRatings": 342,
+  "avgResponseTime": "0.8s",
+  "isFrozen": false
+}
+```
+
+---
+
+## GET /dashboard/activity
+
+Retrieve recent activity for a specific agent.
+
+<Warning>
+**Required Parameter:** `agentId` must be provided.
+</Warning>
+
+### Query Parameters
+
+<ParamField query="agentId" type="string" required>
+  Agent ID to fetch activity for.
+</ParamField>
+
+<ParamField query="sessionId" type="string">
+  Filter activity by session ID.
+</ParamField>
+
+<ParamField query="limit" type="number" default="10">
+  Maximum number of activities to return.
+</ParamField>
+
+### Response Fields
+
+<ResponseField name="activities" type="array" required>
+  Array of recent activity events.
+  
+  <Expandable title="Activity Object">
+    <ResponseField name="id" type="number" required>
+      Unique activity ID.
+    </ResponseField>
+    
+    <ResponseField name="type" type="string" required>
+      Activity type (always "Query Processed").
+    </ResponseField>
+    
+    <ResponseField name="timestamp" type="string" required>
+      ISO 8601 timestamp of the activity.
+    </ResponseField>
+    
+    <ResponseField name="action" type="string" required>
+      Action type (always "received").
+    </ResponseField>
+    
+    <ResponseField name="responseTimeMs" type="number">
+      Response time in milliseconds.
+    </ResponseField>
+    
+    <ResponseField name="amount" type="number" required>
+      Payment amount in USDC.
+    </ResponseField>
+    
+    <ResponseField name="txHash" type="string">
+      Transaction hash for the payment.
+    </ResponseField>
+    
+    <ResponseField name="receiptRef" type="string">
+      x402 receipt reference ID.
+    </ResponseField>
+    
+    <ResponseField name="endpoint" type="string">
+      API endpoint that was called.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Examples
+
+<CodeGroup>
+
+```bash Recent Activity
+curl "http://localhost:3001/dashboard/activity?agentId=oracle&limit=5"
+```
+
+```bash Session-Filtered Activity
+curl "http://localhost:3001/dashboard/activity?agentId=scout&sessionId=session-abc-123"
+```
+
+```javascript JavaScript
+const response = await fetch(
+  'http://localhost:3001/dashboard/activity?agentId=oracle&limit=20'
+);
+const data = await response.json();
+
+data.activities.forEach(activity => {
+  console.log(`${activity.timestamp}: $${activity.amount} (${activity.responseTimeMs}ms)`);
+});
+```
+
+</CodeGroup>
+
+### Response Example
+
+```json
+{
+  "activities": [
+    {
+      "id": 1234,
+      "type": "Query Processed",
+      "timestamp": "2026-03-03T14:32:18.000Z",
+      "action": "received",
+      "responseTimeMs": 823,
+      "amount": 0.01,
+      "txHash": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+      "receiptRef": "receipt-1234567890-abc",
+      "endpoint": "/api/x402/oracle/price"
+    },
+    {
+      "id": 1233,
+      "type": "Query Processed",
+      "timestamp": "2026-03-03T14:28:45.000Z",
+      "action": "received",
+      "responseTimeMs": 756,
+      "amount": 0.01,
+      "txHash": null,
+      "receiptRef": "receipt-9876543210-xyz",
+      "endpoint": "/api/x402/oracle/prices"
+    }
+  ]
+}
+```
+
+---
+
+## GET /dashboard/spend
+
+Retrieve spending summary and receipts for a specific session.
+
+<Warning>
+**Required Parameter:** `sessionId` must be provided.
+</Warning>
+
+### Query Parameters
+
+<ParamField query="sessionId" type="string" required>
+  Session ID to fetch spending data for.
+</ParamField>
+
+<ParamField query="agentId" type="string">
+  Filter spending by specific agent.
+</ParamField>
+
+<ParamField query="limit" type="number" default="50">
+  Maximum number of receipts to return.
+</ParamField>
+
+### Response Fields
+
+<ResponseField name="sessionId" type="string" required>
+  The session identifier.
+</ResponseField>
+
+<ResponseField name="agentId" type="string">
+  Agent ID if filtered, otherwise `null`.
+</ResponseField>
+
+<ResponseField name="totalSpendUsd" type="number" required>
+  Total USD spent in this session.
+</ResponseField>
+
+<ResponseField name="paidCalls" type="number" required>
+  Number of successful paid agent calls.
+</ResponseField>
+
+<ResponseField name="budget" type="object" required>
+  Budget tracking information.
+  
+  <Expandable title="Budget Object">
+    <ResponseField name="budget.limitUsd" type="number">
+      Maximum budget limit in USD.
+    </ResponseField>
+    
+    <ResponseField name="budget.spentUsdStart" type="number">
+      USD spent at session start.
+    </ResponseField>
+    
+    <ResponseField name="budget.spentUsdEnd" type="number">
+      USD spent at session end.
+    </ResponseField>
+    
+    <ResponseField name="budget.remainingUsdEnd" type="number">
+      Remaining budget at session end.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="receipts" type="array" required>
+  Array of payment receipts.
+  
+  <Expandable title="Receipt Object">
+    <ResponseField name="agentId" type="string">
+      Agent that received the payment.
+    </ResponseField>
+    
+    <ResponseField name="endpoint" type="string">
+      API endpoint that was called.
+    </ResponseField>
+    
+    <ResponseField name="amount" type="string">
+      Payment amount in token units.
+    </ResponseField>
+    
+    <ResponseField name="amountUsd" type="string">
+      Payment amount in USD.
+    </ResponseField>
+    
+    <ResponseField name="payTo" type="string">
+      Receiving wallet address.
+    </ResponseField>
+    
+    <ResponseField name="txHash" type="string">
+      Blockchain transaction hash.
+    </ResponseField>
+    
+    <ResponseField name="receiptRef" type="string">
+      x402 receipt reference ID.
+    </ResponseField>
+    
+    <ResponseField name="settlePayer" type="string">
+      Payer address for settlement.
+    </ResponseField>
+    
+    <ResponseField name="settleNetwork" type="string">
+      Network used for settlement.
+    </ResponseField>
+    
+    <ResponseField name="settledAt" type="string">
+      ISO 8601 timestamp of settlement.
+    </ResponseField>
+    
+    <ResponseField name="success" type="boolean">
+      Whether the payment was successful.
+    </ResponseField>
+    
+    <ResponseField name="latencyMs" type="number">
+      Request latency in milliseconds.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="decisionLog" type="array" required>
+  Array of AI decision steps showing tool usage and reasoning.
+</ResponseField>
+
+<ResponseField name="traceId" type="string">
+  Unique trace identifier for this session.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string" required>
+  Last update timestamp.
+</ResponseField>
+
+### Examples
+
+<CodeGroup>
+
+```bash Session Spending
+curl "http://localhost:3001/dashboard/spend?sessionId=session-abc-123"
+```
+
+```bash Agent-Filtered Spending
+curl "http://localhost:3001/dashboard/spend?sessionId=session-abc-123&agentId=oracle"
+```
+
+```javascript JavaScript
+const response = await fetch(
+  'http://localhost:3001/dashboard/spend?sessionId=session-abc-123'
+);
+const data = await response.json();
+
+console.log(`Total Spend: $${data.totalSpendUsd}`);
+console.log(`Paid Calls: ${data.paidCalls}`);
+console.log(`Remaining Budget: $${data.budget.remainingUsdEnd}`);
+```
+
+</CodeGroup>
+
+### Response Example
+
+```json
+{
+  "sessionId": "session-abc-123",
+  "agentId": null,
+  "totalSpendUsd": 0.05,
+  "paidCalls": 5,
+  "budget": {
+    "limitUsd": 1.5,
+    "spentUsdStart": 0,
+    "spentUsdEnd": 0.05,
+    "remainingUsdEnd": 1.45
+  },
+  "receipts": [
+    {
+      "agentId": "oracle",
+      "endpoint": "/api/x402/oracle/price",
+      "amount": "10000",
+      "amountUsd": "0.01",
+      "payTo": "0x1234567890abcdef1234567890abcdef12345678",
+      "txHash": "0xabcdef...",
+      "receiptRef": "receipt-1234567890-abc",
+      "settlePayer": "0x9876543210fedcba9876543210fedcba98765432",
+      "settleNetwork": "eip155:84532",
+      "settledAt": "2026-03-03T14:32:18.000Z",
+      "success": true,
+      "latencyMs": 823
+    },
+    {
+      "agentId": "scout",
+      "endpoint": "/api/x402/scout/gas",
+      "amount": "10000",
+      "amountUsd": "0.01",
+      "payTo": "0xabcdef1234567890abcdef1234567890abcdef12",
+      "txHash": "0x123456...",
+      "receiptRef": "receipt-9876543210-xyz",
+      "settlePayer": "0x9876543210fedcba9876543210fedcba98765432",
+      "settleNetwork": "eip155:84532",
+      "settledAt": "2026-03-03T14:33:45.000Z",
+      "success": true,
+      "latencyMs": 1234
+    }
+  ],
+  "decisionLog": [
+    {
+      "toolName": "fetchPrice",
+      "agentId": "oracle",
+      "endpoint": "/api/x402/oracle/price",
+      "reasoning": "User asked for Bitcoin price"
+    },
+    {
+      "toolName": "getGasPrices",
+      "agentId": "scout",
+      "endpoint": "/api/x402/scout/gas",
+      "reasoning": "User asked about current gas prices"
+    }
+  ],
+  "traceId": "trace-1234567890-abc123",
+  "updatedAt": "2026-03-03T14:35:12.000Z"
+}
+```
+
+---
+
+## Admin Policy Endpoints
+
+<Warning>
+**Authentication Required:** All admin endpoints require the `x-admin-key` header.
+</Warning>
+
+These endpoints are rate-limited to **30 requests per minute**.
+
+### GET /admin/policy
+
+Retrieve policies for all agents.
+
+```bash
+curl -H "x-admin-key: YOUR_ADMIN_KEY" \
+  http://localhost:3001/admin/policy
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "policies": [
+    {
+      "agentId": "oracle",
+      "frozen": false,
+      "dailyLimitUsd": 1000,
+      "perCallLimitUsd": 5,
+      "allowedEndpoints": [],
+      "allowedPayTo": [],
+      "updatedAt": "2026-03-03T10:00:00.000Z",
+      "updatedBy": "admin@example.com"
+    }
+  ]
+}
+```
+
+### GET /admin/policy/:agentId
+
+Retrieve policy for a specific agent.
+
+```bash
+curl -H "x-admin-key: YOUR_ADMIN_KEY" \
+  http://localhost:3001/admin/policy/oracle
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "policy": {
+    "agentId": "oracle",
+    "frozen": false,
+    "dailyLimitUsd": 1000,
+    "perCallLimitUsd": 5,
+    "allowedEndpoints": [],
+    "allowedPayTo": [],
+    "updatedAt": "2026-03-03T10:00:00.000Z",
+    "updatedBy": "admin@example.com"
+  }
+}
+```
+
+### POST /admin/policy/:agentId/freeze
+
+Freeze or unfreeze an agent.
+
+**Request:**
+```bash
+curl -X POST \
+  -H "x-admin-key: YOUR_ADMIN_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"frozen": true, "updatedBy": "admin@example.com"}' \
+  http://localhost:3001/admin/policy/oracle/freeze
+```
+
+**Request Body:**
+<ParamField body="frozen" type="boolean" required>
+  Whether to freeze the agent.
+</ParamField>
+
+<ParamField body="updatedBy" type="string">
+  Admin identifier for audit logs.
+</ParamField>
+
+**Response:**
+```json
+{
+  "success": true,
+  "policy": {
+    "agentId": "oracle",
+    "frozen": true,
+    "updatedAt": "2026-03-03T14:45:00.000Z",
+    "updatedBy": "admin@example.com"
+  }
+}
+```
+
+### PATCH /admin/policy/:agentId
+
+Update agent policy settings.
+
+**Request:**
+```bash
+curl -X PATCH \
+  -H "x-admin-key: YOUR_ADMIN_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "dailyLimitUsd": 2000,
+    "perCallLimitUsd": 10,
+    "updatedBy": "admin@example.com"
+  }' \
+  http://localhost:3001/admin/policy/oracle
+```
+
+**Request Body:**
+<ParamField body="frozen" type="boolean">
+  Freeze status.
+</ParamField>
+
+<ParamField body="dailyLimitUsd" type="number">
+  Daily spending limit in USD.
+</ParamField>
+
+<ParamField body="perCallLimitUsd" type="number">
+  Per-call spending limit in USD.
+</ParamField>
+
+<ParamField body="allowedEndpoints" type="array">
+  Whitelist of allowed endpoints (empty = all allowed).
+</ParamField>
+
+<ParamField body="allowedPayTo" type="array">
+  Whitelist of allowed payment addresses (empty = all allowed).
+</ParamField>
+
+<ParamField body="updatedBy" type="string">
+  Admin identifier for audit logs.
+</ParamField>
+
+**Response:**
+```json
+{
+  "success": true,
+  "policy": {
+    "agentId": "oracle",
+    "frozen": false,
+    "dailyLimitUsd": 2000,
+    "perCallLimitUsd": 10,
+    "allowedEndpoints": [],
+    "allowedPayTo": [],
+    "updatedAt": "2026-03-03T14:50:00.000Z",
+    "updatedBy": "admin@example.com"
+  }
+}
+```
+
+---
+
+## Error Responses
+
+### Missing Required Parameter
+
+```json
+{
+  "error": "agentId required"
+}
+```
+
+### Unsupported Agent ID
+
+```json
+{
+  "error": "Unsupported agentId: invalid-agent"
+}
+```
+
+### Unauthorized (Admin Endpoints)
+
+```json
+{
+  "success": false,
+  "error": "Unauthorized"
+}
+```
+
+---
+
+## Related Endpoints
+
+- [POST /query](/api/query) - Submit queries that generate activity
+- [GET /providers](/api/providers) - List available agents

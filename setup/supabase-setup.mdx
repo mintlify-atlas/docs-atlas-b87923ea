@@ -1,0 +1,376 @@
+---
+title: Supabase Database Setup
+description: Set up your Supabase database schema for the Arcana x402 Agent Marketplace
+icon: database
+---
+
+## Overview
+
+The Arcana x402 Agent Marketplace uses Supabase as its primary database for storing:
+
+- Chat sessions and messages
+- Payment receipts and x402 transaction logs
+- Agent ratings and feedback
+- Policy controls and decision audit logs
+- Procurement provider statistics
+
+## Prerequisites
+
+<Note>
+  You need a Supabase project before proceeding. Create one at [supabase.com](https://supabase.com) if you haven't already.
+</Note>
+
+## Setup Steps
+
+<Steps>
+  <Step title="Access Supabase SQL Editor">
+    1. Log into your Supabase dashboard
+    2. Select your project
+    3. Navigate to the **SQL Editor** from the left sidebar
+  </Step>
+
+  <Step title="Run SQL scripts in order">
+    Execute the SQL files in the following order. Each file is located in `backend/`:
+    
+    1. `supabase-schema.sql` - Core chat tables
+    2. `supabase-query-logs.sql` - Payment logs and procurement
+    3. `supabase-ratings.sql` - Rating system
+    4. `supabase-agent-policy.sql` - Policy controls
+    
+    <Warning>
+      Scripts must be run in this exact order to ensure proper table dependencies.
+    </Warning>
+  </Step>
+
+  <Step title="Verify tables were created">
+    In the Supabase dashboard, go to **Table Editor** and confirm all tables are present:
+    
+    - `chat_sessions`
+    - `chat_messages`
+    - `query_logs`
+    - `x402_payment_logs`
+    - `x402_session_spend`
+    - `x402_traces`
+    - `x402_trace_steps`
+    - `x402_procurement_provider_stats`
+    - `x402_procurement_receipts`
+    - `message_ratings`
+    - `agent_policies`
+    - `policy_decision_logs`
+  </Step>
+
+  <Step title="Configure environment variables">
+    Update your backend `.env` with your Supabase credentials:
+    
+    ```env
+    SUPABASE_URL=https://<your-project>.supabase.co
+    SUPABASE_ANON_KEY=<your-anon-key>
+    ```
+    
+    Find these values in your Supabase project settings under **API**.
+  </Step>
+</Steps>
+
+## Database Schema Reference
+
+### 1. Chat Sessions & Messages
+
+**File:** `supabase-schema.sql`
+
+These tables store user chat conversations and message history.
+
+#### `chat_sessions`
+
+```sql
+CREATE TABLE IF NOT EXISTS chat_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    wallet_address TEXT NOT NULL,
+    title TEXT DEFAULT 'New Chat',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+Stores chat session metadata linked to user wallet addresses.
+
+#### `chat_messages`
+
+```sql
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id UUID REFERENCES chat_sessions(id) ON DELETE CASCADE,
+    message_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    is_user BOOLEAN NOT NULL,
+    escrow_id TEXT,
+    tx_hash TEXT,
+    image_preview TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+Stores individual messages within chat sessions, including payment transaction references.
+
+### 2. Query Logs & x402 Payments
+
+**File:** `supabase-query-logs.sql`
+
+These tables track payment transactions, performance metrics, and procurement records.
+
+#### `query_logs`
+
+Tracks response time metrics per query:
+
+```sql
+CREATE TABLE IF NOT EXISTS query_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    response_time_ms INTEGER NOT NULL,
+    agent_id TEXT,
+    tx_hash TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+#### `x402_payment_logs`
+
+Detailed x402 payment receipts with settlement and facilitator data:
+
+```sql
+CREATE TABLE IF NOT EXISTS x402_payment_logs (
+    id TEXT PRIMARY KEY,
+    session_id TEXT,
+    trace_id TEXT,
+    agent_id TEXT NOT NULL,
+    endpoint TEXT NOT NULL,
+    method TEXT NOT NULL,
+    amount TEXT NOT NULL,
+    amount_usd NUMERIC(18,6) NOT NULL,
+    network TEXT NOT NULL,
+    pay_to TEXT NOT NULL,
+    receipt_ref TEXT,
+    tx_hash TEXT,
+    settle_payer TEXT,
+    settle_network TEXT,
+    settle_tx_hash TEXT,
+    facilitator_settlement_id TEXT,
+    facilitator_payment_id TEXT,
+    payment_response_header TEXT,
+    -- ... additional audit fields
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+<Note>
+  This table includes rich audit fields for x402 protocol compliance, including facilitator settlement IDs, payload hashes, and response metadata.
+</Note>
+
+#### `x402_session_spend`
+
+Session-level spending snapshots:
+
+```sql
+CREATE TABLE IF NOT EXISTS x402_session_spend (
+    session_id TEXT PRIMARY KEY,
+    total_spend_usd NUMERIC(18,6) NOT NULL DEFAULT 0,
+    paid_calls INTEGER NOT NULL DEFAULT 0,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+#### `x402_traces` & `x402_trace_steps`
+
+Budget tracking and decision logs:
+
+```sql
+CREATE TABLE IF NOT EXISTS x402_traces (
+    trace_id TEXT PRIMARY KEY,
+    session_id TEXT,
+    user_prompt TEXT,
+    budget_limit_usd NUMERIC(18,6) NOT NULL,
+    spent_usd_start NUMERIC(18,6) NOT NULL,
+    spent_usd_end NUMERIC(18,6) NOT NULL,
+    remaining_usd_end NUMERIC(18,6) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS x402_trace_steps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    trace_id TEXT NOT NULL REFERENCES x402_traces(trace_id) ON DELETE CASCADE,
+    step_index INTEGER NOT NULL,
+    tool_name TEXT NOT NULL,
+    endpoint TEXT NOT NULL,
+    quoted_price_usd NUMERIC(18,6) NOT NULL,
+    reason TEXT NOT NULL,
+    budget_before_usd NUMERIC(18,6) NOT NULL,
+    budget_after_usd NUMERIC(18,6) NOT NULL,
+    outcome TEXT NOT NULL,
+    -- ...
+);
+```
+
+#### `x402_procurement_provider_stats`
+
+Provider scoring and circuit breaker state:
+
+```sql
+CREATE TABLE IF NOT EXISTS x402_procurement_provider_stats (
+    id TEXT PRIMARY KEY,
+    calls INTEGER NOT NULL DEFAULT 0,
+    successes INTEGER NOT NULL DEFAULT 0,
+    failures INTEGER NOT NULL DEFAULT 0,
+    avg_latency_ms NUMERIC(12,2) NOT NULL DEFAULT 0,
+    schema_passes INTEGER NOT NULL DEFAULT 0,
+    consecutive_failures INTEGER NOT NULL DEFAULT 0,
+    circuit_open_until TIMESTAMPTZ,
+    last_status INTEGER,
+    last_error TEXT,
+    last_seen_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+#### `x402_procurement_receipts`
+
+Procurement receipt ledger:
+
+```sql
+CREATE TABLE IF NOT EXISTS x402_procurement_receipts (
+    id TEXT PRIMARY KEY,
+    intent TEXT NOT NULL,
+    provider_id TEXT NOT NULL,
+    url TEXT NOT NULL,
+    method TEXT NOT NULL,
+    status INTEGER NOT NULL,
+    paid_amount_atomic TEXT NOT NULL,
+    response_hash TEXT NOT NULL,
+    latency_ms INTEGER NOT NULL DEFAULT 0,
+    success BOOLEAN NOT NULL DEFAULT false,
+    schema_ok BOOLEAN NOT NULL DEFAULT false,
+    score NUMERIC(10,6) NOT NULL DEFAULT 0,
+    tx_hash TEXT,
+    pay_to TEXT,
+    attempt INTEGER NOT NULL DEFAULT 1,
+    error TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### 3. Message Ratings
+
+**File:** `supabase-ratings.sql`
+
+#### `message_ratings`
+
+User feedback on agent responses:
+
+```sql
+CREATE TABLE IF NOT EXISTS message_ratings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    message_id TEXT NOT NULL,
+    user_address TEXT NOT NULL,
+    agent_id TEXT,
+    is_positive BOOLEAN NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(message_id, user_address)
+);
+```
+
+Supports thumbs up/down rating system with one rating per user per message.
+
+### 4. Agent Policy Controls
+
+**File:** `supabase-agent-policy.sql`
+
+#### `agent_policies`
+
+Policy configuration per agent:
+
+```sql
+create table if not exists public.agent_policies (
+  agent_id text primary key,
+  frozen boolean not null default false,
+  daily_limit_usd numeric(18,6) not null default 1.000000,
+  per_call_limit_usd numeric(18,6) not null default 0.050000,
+  allowed_endpoints text[] not null default '{}',
+  allowed_pay_to text[] not null default '{}',
+  updated_by text,
+  updated_at timestamptz not null default now()
+);
+```
+
+#### `policy_decision_logs`
+
+Audit log for policy enforcement decisions:
+
+```sql
+create table if not exists public.policy_decision_logs (
+  id uuid primary key,
+  trace_id text,
+  session_id uuid,
+  agent_id text not null,
+  endpoint text not null,
+  quoted_price_usd numeric(18,6) not null default 0,
+  decision text not null check (decision in ('allow', 'deny')),
+  reason text not null,
+  spent_today_usd numeric(18,6) not null default 0,
+  reserved_usd numeric(18,6) not null default 0,
+  remaining_daily_usd numeric(18,6) not null default 0,
+  budget_before_usd numeric(18,6),
+  created_at timestamptz not null default now()
+);
+```
+
+## Row Level Security (RLS)
+
+<Warning>
+  The default configuration uses open RLS policies (`FOR ALL USING (true)`) suitable for development. **You must implement proper RLS policies for production.**
+</Warning>
+
+All tables have RLS enabled but with permissive policies for development:
+
+```sql
+CREATE POLICY "Allow all operations" ON table_name
+    FOR ALL USING (true) WITH CHECK (true);
+```
+
+### Production RLS Recommendations
+
+1. **Chat sessions/messages**: Restrict to wallet owner
+2. **Payment logs**: Read-only for authenticated users, write-only for backend service
+3. **Ratings**: Users can only rate their own messages
+4. **Policy tables**: Admin-only write access
+
+## Indexes
+
+The scripts create performance indexes automatically:
+
+- `idx_chat_sessions_wallet` - Fast wallet-based session lookups
+- `idx_chat_messages_session` - Efficient message retrieval per session
+- `idx_query_logs_agent` - Agent-specific query performance
+- `idx_x402_payment_logs_session` - Session payment history
+- `idx_x402_payment_logs_trace` - Trace-based payment lookups
+- And more...
+
+## Troubleshooting
+
+### Policy already exists errors
+
+If you see policy-exists errors when re-running scripts, the policy already exists. The scripts use `DROP POLICY IF EXISTS` guards, but some older versions may not. This is usually safe to ignore.
+
+### RLS prevents data access
+
+If your backend cannot write to tables, verify:
+
+1. You're using the `SUPABASE_ANON_KEY` (not the service role key)
+2. RLS policies are set to allow all operations for development
+3. Check Supabase logs for specific RLS violations
+
+### Migration issues
+
+The scripts include backfill-compatible `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` statements, making them safe to re-run if you need to update your schema.
+
+## Next Steps
+
+- Configure [Environment Variables](/setup/environment-variables) with your Supabase credentials
+- Start your [Local Development](/setup/local-development) environment
+- Deploy [Smart Contracts](/setup/contract-deployment) to Base Sepolia

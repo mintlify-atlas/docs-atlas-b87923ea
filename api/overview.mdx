@@ -1,0 +1,147 @@
+---
+title: 'API Overview'
+description: 'Core API endpoints for the Arcana x402 Agent Marketplace'
+icon: 'code'
+---
+
+## Base URL
+
+The Arcana API is available at:
+
+```bash
+http://localhost:3001
+```
+
+For production deployments, use your configured production URL.
+
+## Authentication
+
+### Query Endpoint Authentication
+
+The `/query` endpoint accepts payment verification via USDC transaction hash:
+
+```json
+{
+  "query": "What is the price of BTC?",
+  "txHash": "0x...",
+  "userAddress": "0x..."
+}
+```
+
+**Payment Details:**
+- Cost: $0.03 USDC per query
+- The transaction hash is verified on-chain before processing
+- Transaction must be confirmed (status: 'success')
+
+### Admin Endpoints Authentication
+
+Protected admin endpoints require the `x-admin-key` header:
+
+```bash
+curl -H "x-admin-key: YOUR_ADMIN_KEY" \
+  http://localhost:3001/admin/policy
+```
+
+Set your admin key via the `ADMIN_API_KEY` environment variable.
+
+## Rate Limiting
+
+### Query Rate Limit
+
+<Warning>
+The `/query` endpoint is rate limited to **10 queries per minute** per IP address.
+</Warning>
+
+```json
+{
+  "error": "Query rate limit exceeded. Please wait before sending more queries."
+}
+```
+
+### General Rate Limit
+
+Most other endpoints are limited to **100 requests per 15 minutes** per IP address.
+
+**Exemptions:**
+- `OPTIONS` requests (CORS preflight)
+- `GET /health`
+- `GET /providers`
+- `GET /dashboard/*` endpoints
+
+### Admin Policy Rate Limit
+
+Admin policy endpoints (`/admin/policy/*`) have a dedicated limit of **30 requests per minute**.
+
+## Response Format
+
+All API responses follow a consistent JSON structure:
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "data": { /* endpoint-specific data */ },
+  "response": "AI-generated response",
+  "agentsUsed": ["oracle", "scout"],
+  "cost": "0.03"
+}
+```
+
+### Error Response
+
+```json
+{
+  "success": false,
+  "error": "Error message describing what went wrong"
+}
+```
+
+## CORS Configuration
+
+The API accepts requests from the following origins by default:
+
+- `http://localhost:5173`
+- `http://localhost:3000`
+- `http://localhost:8080`
+
+Configure additional origins via the `ALLOWED_ORIGINS` environment variable (comma-separated).
+
+## Health Check
+
+Verify API availability:
+
+```bash
+curl http://localhost:3001/health
+```
+
+```json
+{
+  "status": "ok",
+  "chain": "base-sepolia",
+  "contracts": { /* contract addresses */ },
+  "geminiEnabled": true,
+  "supabaseEnabled": true,
+  "x402": {
+    "buyerSigner": "cdp-wallet",
+    "network": "eip155:84532",
+    "initStatus": "ready",
+    "initError": null,
+    "runtimeSpendLimit": { /* spend limit status */ }
+  }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Query Endpoint" icon="robot" href="/api/query">
+    Send natural language queries to AI agents
+  </Card>
+  <Card title="Providers" icon="users" href="/api/providers">
+    Discover available agents and their capabilities
+  </Card>
+  <Card title="Dashboard" icon="chart-line" href="/api/dashboard">
+    Access agent stats and activity feeds
+  </Card>
+</CardGroup>

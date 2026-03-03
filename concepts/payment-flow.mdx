@@ -1,0 +1,615 @@
+---
+title: 'Payment Flow'
+description: 'End-to-end payment process from user query to agent response'
+icon: 'money-bill-transfer'
+---
+
+## Overview
+
+Arcana implements a **two-tier payment system**: users pay the backend upfront for queries, and the backend pays individual agents per-call using x402. This page walks through the complete payment flow.
+
+<Info>
+  **Currency**: All payments use USDC on Base Sepolia testnet.
+</Info>
+
+## Payment Architecture
+
+<Card title="Two-Tier Payment Model">
+  ```mermaid
+  graph LR
+    A[User Wallet] -->|$0.03 USDC| B[Backend Orchestrator]
+    B -->|$0.01| C[Oracle Agent]
+    B -->|$0.01| D[Scout Agent]
+    B -->|$0.01| E[News Agent]
+    B -->|$0.01| F[Yield Agent]
+    B -->|$0.02| G[Tokenomics Agent]
+    B -->|$0.02| H[NFT Agent]
+    B -->|$0.02| I[Perp Agent]
+  ```
+</Card>
+
+## Step-by-Step Flow
+
+### 1. User Initiates Query
+
+The user types a question in the chat interface:
+
+```
+"What's the current price of Bitcoin and best yield opportunities for BTC?"
+```
+
+### 2. Frontend Initiates Payment
+
+<Steps>
+  <Step title="Wallet Connection">
+    Frontend checks that user has:
+    - Connected wallet (MetaMask, Coinbase Wallet, etc.)
+    - Sufficient USDC balance ($0.03 minimum)
+    - Connected to Base Sepolia network
+  </Step>
+
+  <Step title="Payment Transaction">
+    Frontend constructs a USDC transfer transaction:
+    
+    ```typescript
+    const tx = await usdcContract.transfer(
+      backendWalletAddress,
+      parseUnits('0.03', 6) // 0.03 USDC (6 decimals)
+    );
+    ```
+  </Step>
+
+  <Step title="User Signs">
+    User signs the transaction in their wallet and submits to blockchain
+  </Step>
+
+  <Step title="Wait for Confirmation">
+    Frontend polls for transaction confirmation (typically 2-5 seconds on Base)
+  </Step>
+</Steps>
+
+<CodeGroup>
+
+```typescript Frontend Payment
+import { parseUnits } from 'viem';
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+
+const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+const BACKEND_WALLET = '0x...';
+const QUERY_PRICE = parseUnits('0.03', 6); // 0.03 USDC
+
+// 1. Submit payment transaction
+const { data: txHash, writeContract } = useWriteContract();
+
+await writeContract({
+  address: USDC_ADDRESS,
+  abi: USDC_ABI,
+  functionName: 'transfer',
+  args: [BACKEND_WALLET, QUERY_PRICE],
+});
+
+// 2. Wait for confirmation
+const { data: receipt } = useWaitForTransactionReceipt({
+  hash: txHash,
+});
+
+// 3. Send query to backend
+const response = await fetch('/api/query', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    query: userQuery,
+    txHash: txHash,
+    wallet: userAddress,
+  }),
+});
+```
+
+</CodeGroup>
+
+### 3. Backend Verifies Payment
+
+Before processing any query, the backend verifies the payment transaction:
+
+<Tabs>
+  <Tab title="Verification Steps">
+    <Steps>
+      <Step title="Fetch Transaction Receipt">
+        ```typescript
+        const receipt = await publicClient.getTransactionReceipt({
+          hash: txHash
+        });
+        ```
+      </Step>
+
+      <Step title="Check Status">
+        ```typescript
+        if (receipt.status !== 'success') {
+          throw new Error('Transaction failed');
+        }
+        ```
+      </Step>
+
+      <Step title="Verify Amount">
+        Parse transfer logs to confirm amount >= $0.03 USDC
+      </Step>
+
+      <Step title="Verify Recipient">
+        Ensure payment was sent to backend wallet address
+      </Step>
+
+      <Step title="Check Replay">
+        Verify transaction hasn't been used for a previous query
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="Implementation">
+    ```typescript
+    import { parseAbiItem } from 'viem';
+
+    async function verifyPayment(txHash: string) {
+      // 1. Get transaction receipt
+      const receipt = await publicClient.getTransactionReceipt({
+        hash: txHash
+      });
+
+      if (receipt.status !== 'success') {
+        throw new Error('Transaction failed');
+      }
+
+      // 2. Parse Transfer event
+      const transferEvent = parseAbiItem(
+        'event Transfer(address indexed from, address indexed to, uint256 value)'
+      );
+
+      const logs = await publicClient.getLogs({
+        address: USDC_ADDRESS,
+        event: transferEvent,
+        fromBlock: receipt.blockNumber,
+        toBlock: receipt.blockNumber,
+      });
+
+      const transferLog = logs.find(
+        log => log.transactionHash === txHash
+      );
+
+      if (!transferLog) {
+        throw new Error('Transfer event not found');
+      }
+
+      // 3. Verify recipient and amount
+      const { to, value } = transferLog.args;
+
+      if (to.toLowerCase() !== BACKEND_WALLET.toLowerCase()) {
+        throw new Error('Invalid recipient');
+      }
+
+      const minAmount = parseUnits('0.03', 6);
+      if (value < minAmount) {
+        throw new Error('Insufficient payment');
+      }
+
+      // 4. Check for replay
+      const used = await db.query(
+        'SELECT 1 FROM payment_receipts WHERE tx_hash = $1',
+        [txHash]
+      );
+
+      if (used.rows.length > 0) {
+        throw new Error('Transaction already used');
+      }
+
+      // 5. Mark transaction as used
+      await db.query(
+        'INSERT INTO payment_receipts (tx_hash, amount, wallet, created_at) VALUES ($1, $2, $3, NOW())',
+        [txHash, value.toString(), receipt.from]
+      );
+
+      return { verified: true, amount: value };
+    }
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+  If payment verification fails, the backend returns an error immediately without processing the query.
+</Note>
+
+### 4. AI Orchestration & Agent Selection
+
+Once payment is verified, the backend uses Gemini to analyze the query:
+
+<Tabs>
+  <Tab title="Query Analysis">
+    ```typescript
+    const geminiResponse = await gemini.generateContent({
+      contents: [{
+        role: 'user',
+        parts: [{
+          text: `Analyze this crypto query and determine which agents to call:
+          
+          Query: "${userQuery}"
+          
+          Available agents:
+          - oracle: Token prices and market data
+          - scout: On-chain analytics, gas prices, wallet analysis
+          - news: Latest crypto news and trending topics
+          - yield: DeFi yield opportunities
+          - tokenomics: Token supply, vesting, unlock schedules
+          - nft: NFT collection analytics
+          - perp: Perpetual futures market data
+          
+          Respond with JSON: { "agents": ["agent1", "agent2"], "reasoning": "..." }`
+        }]
+      }]
+    });
+    ```
+  </Tab>
+
+  <Tab title="Example Response">
+    ```json
+    {
+      "agents": ["oracle", "yield"],
+      "reasoning": "Query asks for Bitcoin price (oracle) and yield opportunities for BTC (yield agent)"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### 5. Backend Calls Agents via x402
+
+For each selected agent, the backend executes a paid x402 call:
+
+<Steps>
+  <Step title="Policy Check">
+    Before calling, verify:
+    - Agent is not frozen
+    - Endpoint is allowlisted
+    - Spend limits not exceeded
+    - Circuit breaker is closed
+  </Step>
+
+  <Step title="Preflight Request">
+    Call agent endpoint to get payment requirement:
+    
+    ```http
+    GET /api/x402/oracle/price?symbol=BTC
+    
+    402 Payment Required
+    PAYMENT-REQUIRED: eyJhY2NlcHRzIjpbeyJuZXR3b3JrIjoi...
+    ```
+  </Step>
+
+  <Step title="Submit Payment">
+    Pinion runtime submits on-chain payment using CDP wallet:
+    
+    ```typescript
+    const paymentTx = await cdpWallet.transfer({
+      to: agentWallet,
+      amount: '0.01',
+      token: 'USDC'
+    });
+    ```
+  </Step>
+
+  <Step title="Retry with Proof">
+    Retry the request with payment proof:
+    
+    ```http
+    GET /api/x402/oracle/price?symbol=BTC
+    X-Payment: {payment-proof}
+    
+    200 OK
+    { "symbol": "BTC", "price": 97234.50 }
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  All agent payments happen in parallel when possible to minimize latency.
+</Note>
+
+### 6. Response Synthesis
+
+The backend collects agent responses and uses Gemini to synthesize a coherent answer:
+
+```typescript
+const synthesis = await gemini.generateContent({
+  contents: [{
+    role: 'user',
+    parts: [{
+      text: `Original query: "${userQuery}"
+      
+      Agent responses:
+      
+      Oracle: ${JSON.stringify(oracleResponse)}
+      Yield: ${JSON.stringify(yieldResponse)}
+      
+      Synthesize a natural language response that answers the user's question.`
+    }]
+  }]
+});
+```
+
+### 7. Frontend Displays Response
+
+The frontend receives the complete response with:
+
+```json
+{
+  "answer": "Bitcoin is currently trading at $97,234.50 (+2.34% in 24h). For BTC yield opportunities...",
+  "agentsCalled": [
+    { "agent": "oracle", "cost": "$0.01", "latency": "245ms" },
+    { "agent": "yield", "cost": "$0.01", "latency": "892ms" }
+  ],
+  "totalCost": "$0.02",
+  "userPayment": {
+    "amount": "$0.03",
+    "txHash": "0x...",
+    "explorerUrl": "https://sepolia.basescan.org/tx/0x..."
+  }
+}
+```
+
+## Payment Receipts
+
+All payments are logged to Supabase for audit and analytics:
+
+<Tabs>
+  <Tab title="User Payments">
+    ```sql
+    CREATE TABLE payment_receipts (
+      id UUID PRIMARY KEY,
+      tx_hash TEXT UNIQUE NOT NULL,
+      wallet TEXT NOT NULL,
+      amount TEXT NOT NULL,
+      session_id UUID,
+      query TEXT,
+      agents_called TEXT[],
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    ```
+  </Tab>
+
+  <Tab title="Agent Payments">
+    ```sql
+    CREATE TABLE x402_payment_logs (
+      id UUID PRIMARY KEY,
+      agent_id TEXT NOT NULL,
+      endpoint TEXT NOT NULL,
+      tx_hash TEXT,
+      amount_atomic TEXT NOT NULL,
+      status INTEGER,
+      receipt_ref TEXT,
+      facilitator_settlement_id TEXT,
+      facilitator_payment_id TEXT,
+      request_payload_hash TEXT,
+      response_hash TEXT,
+      settle_payer TEXT,
+      settle_network TEXT,
+      settle_tx_hash TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    ```
+  </Tab>
+
+  <Tab title="Procurement Receipts">
+    ```sql
+    CREATE TABLE x402_procurement_receipts (
+      id TEXT PRIMARY KEY,
+      intent TEXT NOT NULL,
+      provider_id TEXT NOT NULL,
+      url TEXT NOT NULL,
+      method TEXT NOT NULL,
+      status INTEGER NOT NULL,
+      paid_amount_atomic TEXT NOT NULL,
+      response_hash TEXT NOT NULL,
+      latency_ms INTEGER NOT NULL,
+      success BOOLEAN NOT NULL,
+      schema_ok BOOLEAN NOT NULL,
+      score DECIMAL NOT NULL,
+      tx_hash TEXT,
+      pay_to TEXT,
+      attempt INTEGER NOT NULL,
+      error TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    ```
+  </Tab>
+</Tabs>
+
+## Error Handling
+
+<AccordionGroup>
+  <Accordion title="Payment Verification Failed">
+    **Causes:**
+    - Transaction not confirmed
+    - Insufficient payment amount
+    - Wrong recipient address
+    - Transaction already used
+    
+    **Response:**
+    ```json
+    {
+      "error": "Payment verification failed",
+      "reason": "Insufficient payment: sent 0.02 USDC, required 0.03 USDC",
+      "txHash": "0x..."
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Agent Call Failed">
+    **Causes:**
+    - Agent offline or unresponsive
+    - Payment failed or rejected
+    - Circuit breaker open
+    - Policy violation
+    
+    **Handling:**
+    - Try alternative provider if available
+    - Return partial response without failed agent
+    - Inform user which agents failed
+    
+    **Example:**
+    ```json
+    {
+      "answer": "Bitcoin is currently at $97,234.50. (Yield data unavailable)",
+      "warnings": ["Yield agent is temporarily unavailable"]
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Insufficient Backend Balance">
+    **Cause:**
+    Backend CDP wallets run out of USDC for agent payments
+    
+    **Response:**
+    ```json
+    {
+      "error": "Service temporarily unavailable",
+      "reason": "Insufficient backend balance for agent calls",
+      "retryAfter": 300
+    }
+    ```
+    
+    **Resolution:**
+    Admin must fund backend wallets via treasury endpoints
+  </Accordion>
+
+  <Accordion title="Rate Limit Exceeded">
+    **Cause:**
+    User or backend exceeds rate limits
+    
+    **Response:**
+    ```json
+    {
+      "error": "Rate limit exceeded",
+      "retryAfter": 60,
+      "limit": "10 requests per minute"
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Cost Breakdown
+
+Here's a typical cost breakdown for a user query:
+
+<Card title="Example: Multi-Agent Query">
+  **Query:** "What's the price of ETH and best yield opportunities?"
+  
+  | Payment | Recipient | Amount | Purpose |
+  |---------|-----------|--------|----------|
+  | User → Backend | Backend Wallet | $0.03 | Query processing, AI orchestration |
+  | Backend → Oracle | Oracle Agent | $0.01 | ETH price lookup |
+  | Backend → Yield | Yield Agent | $0.01 | Yield opportunities |
+  | **Total** | | **$0.05** | **Complete query cost** |
+  
+  <Info>
+    Backend typically spends $0.01-$0.02 per query on agent calls, keeping the difference to cover infrastructure and AI costs.
+  </Info>
+</Card>
+
+## Treasury Management
+
+The backend provides admin endpoints for managing wallet balances:
+
+<Tabs>
+  <Tab title="Check Balances">
+    ```bash
+    GET /treasury/balance/:address
+    
+    {
+      "address": "0x...",
+      "balances": {
+        "USDC": "15.42",
+        "ETH": "0.05"
+      }
+    }
+    ```
+  </Tab>
+
+  <Tab title="Fund Wallet">
+    ```bash
+    GET /treasury/fund/:address
+    
+    # Requests test USDC from Base Sepolia faucet
+    {
+      "success": true,
+      "amount": "10.00 USDC",
+      "txHash": "0x..."
+    }
+    ```
+  </Tab>
+
+  <Tab title="Transfer Funds">
+    ```bash
+    POST /treasury/send
+    {
+      "to": "0x...",
+      "amount": "5.00",
+      "token": "USDC",
+      "execute": true
+    }
+    
+    {
+      "success": true,
+      "txHash": "0x...",
+      "explorer": "https://sepolia.basescan.org/tx/0x..."
+    }
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  Treasury endpoints require admin authentication via `x-admin-key` header.
+</Warning>
+
+## Monitoring & Analytics
+
+The dashboard provides real-time visibility into payment flows:
+
+<CardGroup cols={2}>
+  <Card title="User Payments" icon="user">
+    - Total revenue from user queries
+    - Payment success rate
+    - Failed payment reasons
+    - Top paying users
+  </Card>
+
+  <Card title="Agent Costs" icon="robot">
+    - Spend per agent
+    - Agent call frequency
+    - Cost per query breakdown
+    - Margin analysis
+  </Card>
+
+  <Card title="Settlement Tracking" icon="handshake">
+    - Pending settlements
+    - Confirmed payments
+    - Facilitator status
+    - Dispute resolution
+  </Card>
+
+  <Card title="Wallet Health" icon="wallet">
+    - Backend balance alerts
+    - Agent wallet balances
+    - Funding recommendations
+    - Transaction history
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="x402 Protocol" icon="credit-card" href="/concepts/x402-protocol">
+    Deep dive into the x402 protocol specification
+  </Card>
+  <Card title="Agent Marketplace" icon="store" href="/concepts/agent-marketplace">
+    Explore the 7 specialized agents
+  </Card>
+  <Card title="Architecture" icon="diagram-project" href="/concepts/architecture">
+    Review the complete system architecture
+  </Card>
+</CardGroup>

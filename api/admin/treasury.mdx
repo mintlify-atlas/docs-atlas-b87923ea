@@ -1,0 +1,612 @@
+---
+title: 'Treasury Management API'
+description: 'Pinion-powered treasury operations: send tokens, execute trades, generate wallets, and query blockchain data'
+icon: 'vault'
+---
+
+## Authentication
+
+All treasury endpoints require admin authentication via the `x-admin-key` header.
+
+```bash
+curl -H "x-admin-key: your-admin-key" https://api.example.com/treasury/balance/0x...
+```
+
+<Warning>
+  Treasury operations are sensitive and require proper admin key configuration.
+</Warning>
+
+---
+
+## Runtime Status
+
+<RequestExample>
+```bash GET /treasury/runtime
+curl -X GET https://api.example.com/treasury/runtime \
+  -H "x-admin-key: your-admin-key"
+```
+</RequestExample>
+
+Returns the current Pinion runtime configuration and status.
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "status": {
+    "apiKeyConfigured": true,
+    "network": "base",
+    "runtimeSpendLimit": "10.00 USDC",
+    "spentSoFar": "0.15 USDC",
+    "remaining": "9.85 USDC"
+  }
+}
+```
+</ResponseExample>
+
+---
+
+## API Key Management
+
+### Set API Key
+
+<RequestExample>
+```bash POST /treasury/api-key
+curl -X POST https://api.example.com/treasury/api-key \
+  -H "x-admin-key: your-admin-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "set",
+    "apiKey": "pinion_api_key_here"
+  }'
+```
+</RequestExample>
+
+**Request Body**
+
+<ParamField body="action" type="string" required>
+  Action to perform: `"set"`, `"clear"`, or omit for status
+</ParamField>
+
+<ParamField body="apiKey" type="string">
+  Pinion API key (required when action is `"set"`)
+</ParamField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "status": {
+    "apiKeyConfigured": true
+  }
+}
+```
+</ResponseExample>
+
+### Clear API Key
+
+<RequestExample>
+```bash POST /treasury/api-key
+curl -X POST https://api.example.com/treasury/api-key \
+  -H "x-admin-key: your-admin-key" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "clear"}'
+```
+</RequestExample>
+
+---
+
+## Unlimited Plan
+
+### Purchase Unlimited
+
+<RequestExample>
+```bash POST /treasury/unlimited/purchase
+curl -X POST https://api.example.com/treasury/unlimited/purchase \
+  -H "x-admin-key: your-admin-key"
+```
+</RequestExample>
+
+Purchase Pinion Unlimited plan (removes per-call limits).
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "data": {
+    "apiKey": "pinion_unlimited_...",
+    "plan": "unlimited",
+    "expiresAt": "2027-03-03T00:00:00Z"
+  },
+  "paidAmount": "0.00",
+  "status": {
+    "apiKeyConfigured": true
+  }
+}
+```
+</ResponseExample>
+
+### Verify Unlimited Key
+
+<RequestExample>
+```bash POST /treasury/unlimited/verify
+curl -X POST https://api.example.com/treasury/unlimited/verify \
+  -H "x-admin-key: your-admin-key" \
+  -H "Content-Type: application/json" \
+  -d '{"apiKey": "pinion_unlimited_..."}'
+```
+</RequestExample>
+
+**Request Body**
+
+<ParamField body="apiKey" type="string" required>
+  Pinion Unlimited API key to verify
+</ParamField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "result": {
+    "valid": true,
+    "plan": "unlimited",
+    "expiresAt": "2027-03-03T00:00:00Z"
+  }
+}
+```
+</ResponseExample>
+
+---
+
+## Query Operations
+
+### Get Balance
+
+<RequestExample>
+```bash GET /treasury/balance/:address
+curl -X GET https://api.example.com/treasury/balance/0x1234... \
+  -H "x-admin-key: your-admin-key"
+```
+</RequestExample>
+
+**Path Parameters**
+
+<ParamField path="address" type="string" required>
+  Ethereum address to query
+</ParamField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "data": {
+    "address": "0x1234...",
+    "eth": "1.5",
+    "usdc": "100.50",
+    "tokens": [
+      {
+        "symbol": "WETH",
+        "balance": "0.5",
+        "value": "1250.00"
+      }
+    ]
+  },
+  "paidAmount": "0.01"
+}
+```
+</ResponseExample>
+
+### Get Transaction
+
+<RequestExample>
+```bash GET /treasury/tx/:hash
+curl -X GET https://api.example.com/treasury/tx/0xabc... \
+  -H "x-admin-key: your-admin-key"
+```
+</RequestExample>
+
+**Path Parameters**
+
+<ParamField path="hash" type="string" required>
+  Transaction hash (0x...)
+</ParamField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "data": {
+    "hash": "0xabc...",
+    "blockNumber": 12345678,
+    "from": "0x1234...",
+    "to": "0x5678...",
+    "value": "1.0",
+    "gasUsed": "21000",
+    "status": "success"
+  },
+  "paidAmount": "0.01"
+}
+```
+</ResponseExample>
+
+### Get Token Price
+
+<RequestExample>
+```bash GET /treasury/price/:token
+curl -X GET https://api.example.com/treasury/price/WETH \
+  -H "x-admin-key: your-admin-key"
+```
+</RequestExample>
+
+**Path Parameters**
+
+<ParamField path="token" type="string" required>
+  Token symbol (e.g., WETH, USDC, DAI)
+</ParamField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "data": {
+    "symbol": "WETH",
+    "price": "2500.00",
+    "change24h": "+3.5%"
+  },
+  "paidAmount": "0.01"
+}
+```
+</ResponseExample>
+
+### Get Funding Info
+
+<RequestExample>
+```bash GET /treasury/fund/:address
+curl -X GET https://api.example.com/treasury/fund/0x1234... \
+  -H "x-admin-key: your-admin-key"
+```
+</RequestExample>
+
+Returns funding recommendations and faucet availability for an address.
+
+**Path Parameters**
+
+<ParamField path="address" type="string" required>
+  Address to check funding options for
+</ParamField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "data": {
+    "address": "0x1234...",
+    "needsFunding": true,
+    "recommendedAmount": "0.1 ETH",
+    "faucets": [
+      {
+        "network": "base-sepolia",
+        "url": "https://faucet.base.org"
+      }
+    ]
+  },
+  "paidAmount": "0.00"
+}
+```
+</ResponseExample>
+
+---
+
+## Execution Operations
+
+### Generate Wallet
+
+<RequestExample>
+```bash POST /treasury/wallet/generate
+curl -X POST https://api.example.com/treasury/wallet/generate \
+  -H "x-admin-key: your-admin-key"
+```
+</RequestExample>
+
+Generates a new Ethereum wallet (address + private key).
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "data": {
+    "address": "0x9876...",
+    "privateKey": "0xabcdef..."
+  },
+  "paidAmount": "0.01"
+}
+```
+</ResponseExample>
+
+<Warning>
+  Store private keys securely. Never expose them in logs or client-side code.
+</Warning>
+
+### Send Tokens
+
+<RequestExample>
+```bash POST /treasury/send
+curl -X POST https://api.example.com/treasury/send \
+  -H "x-admin-key: your-admin-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to": "0x1234...",
+    "amount": "10.5",
+    "token": "USDC",
+    "execute": true
+  }'
+```
+</RequestExample>
+
+**Request Body**
+
+<ParamField body="to" type="string" required>
+  Recipient address
+</ParamField>
+
+<ParamField body="amount" type="string" required>
+  Amount to send (human-readable, e.g., "10.5")
+</ParamField>
+
+<ParamField body="token" type="string" required>
+  Token symbol: `"ETH"` or `"USDC"`
+</ParamField>
+
+<ParamField body="execute" type="boolean" required>
+  Set to `true` to execute, `false` for dry-run
+</ParamField>
+
+<ResponseExample>
+```json Dry Run (execute: false)
+{
+  "success": true,
+  "data": {
+    "to": "0x1234...",
+    "amount": "10.5",
+    "token": "USDC",
+    "estimatedGas": "50000",
+    "estimatedFee": "0.001 ETH"
+  },
+  "paidAmount": "0.01"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Executed (execute: true)
+{
+  "success": true,
+  "data": {
+    "txHash": "0xabc...",
+    "to": "0x1234...",
+    "amount": "10.5",
+    "token": "USDC",
+    "status": "pending"
+  },
+  "paidAmount": "0.02"
+}
+```
+</ResponseExample>
+
+### Execute Trade
+
+<RequestExample>
+```bash POST /treasury/trade
+curl -X POST https://api.example.com/treasury/trade \
+  -H "x-admin-key: your-admin-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "src": "USDC",
+    "dst": "WETH",
+    "amount": "1000",
+    "slippage": 0.5,
+    "execute": false
+  }'
+```
+</RequestExample>
+
+**Request Body**
+
+<ParamField body="src" type="string" required>
+  Source token symbol (e.g., "USDC", "ETH")
+</ParamField>
+
+<ParamField body="dst" type="string" required>
+  Destination token symbol
+</ParamField>
+
+<ParamField body="amount" type="string" required>
+  Amount of source token to trade
+</ParamField>
+
+<ParamField body="slippage" type="number">
+  Maximum slippage percentage (default: 0.5)
+</ParamField>
+
+<ParamField body="execute" type="boolean" required>
+  Set to `true` to execute, `false` for quote
+</ParamField>
+
+<ResponseExample>
+```json Quote (execute: false)
+{
+  "success": true,
+  "data": {
+    "src": "USDC",
+    "dst": "WETH",
+    "srcAmount": "1000",
+    "dstAmount": "0.4",
+    "rate": "2500.00",
+    "estimatedGas": "150000",
+    "slippage": 0.5
+  },
+  "paidAmount": "0.01"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json Executed (execute: true)
+{
+  "success": true,
+  "data": {
+    "txHash": "0xdef...",
+    "src": "USDC",
+    "dst": "WETH",
+    "srcAmount": "1000",
+    "dstAmount": "0.398",
+    "status": "pending"
+  },
+  "paidAmount": "0.02"
+}
+```
+</ResponseExample>
+
+### Broadcast Transaction
+
+<RequestExample>
+```bash POST /treasury/broadcast
+curl -X POST https://api.example.com/treasury/broadcast \
+  -H "x-admin-key: your-admin-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tx": {
+      "to": "0x1234...",
+      "data": "0x...",
+      "value": "0",
+      "gasLimit": "100000"
+    }
+  }'
+```
+</RequestExample>
+
+**Request Body**
+
+<ParamField body="tx" type="object" required>
+  Transaction object to broadcast
+  
+  <Expandable title="Transaction Fields">
+    <ParamField body="to" type="string" required>
+      Recipient contract/address
+    </ParamField>
+    
+    <ParamField body="data" type="string">
+      Encoded call data (default: "0x")
+    </ParamField>
+    
+    <ParamField body="value" type="string">
+      ETH value to send (in wei, default: "0")
+    </ParamField>
+    
+    <ParamField body="gasLimit" type="string">
+      Gas limit for the transaction
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "data": {
+    "txHash": "0xabc...",
+    "status": "pending"
+  },
+  "paidAmount": "0.02"
+}
+```
+</ResponseExample>
+
+### AI Treasury Chat
+
+<RequestExample>
+```bash POST /treasury/chat
+curl -X POST https://api.example.com/treasury/chat \
+  -H "x-admin-key: your-admin-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "What is my USDC balance?",
+    "history": []
+  }'
+```
+</RequestExample>
+
+Natural language interface for treasury operations.
+
+**Request Body**
+
+<ParamField body="message" type="string" required>
+  User message/query
+</ParamField>
+
+<ParamField body="history" type="array">
+  Previous conversation messages for context
+</ParamField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "data": {
+    "response": "Your USDC balance is 100.50 USDC across all wallets.",
+    "actions": [
+      {
+        "type": "balance_query",
+        "result": {"usdc": "100.50"}
+      }
+    ]
+  },
+  "paidAmount": "0.05"
+}
+```
+</ResponseExample>
+
+---
+
+## Error Responses
+
+<ResponseExample>
+```json 401 Unauthorized
+{
+  "success": false,
+  "error": "Unauthorized"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json 400 Bad Request
+{
+  "success": false,
+  "error": "Invalid payload. Required: { to, amount, token: 'ETH'|'USDC', execute? }"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json 500 Internal Server Error
+{
+  "success": false,
+  "error": "Pinion API key not configured"
+}
+```
+</ResponseExample>
+
+---
+
+## Cost Tracking
+
+All treasury operations include a `paidAmount` field showing the USDC cost for the Pinion API call:
+
+- **Query operations**: ~$0.01 USDC per call
+- **Execution operations**: ~$0.02 USDC per call
+- **AI chat**: ~$0.05 USDC per message
+
+<Note>
+  Pinion Unlimited plan removes per-call costs for high-volume usage.
+</Note>

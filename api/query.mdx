@@ -1,0 +1,322 @@
+---
+title: 'POST /query'
+description: 'Process natural language queries with AI agents'
+icon: 'message-bot'
+---
+
+## Endpoint
+
+```bash
+POST /query
+```
+
+Process user queries using AI agents with optional image input. This endpoint orchestrates multiple specialized agents (Oracle, Scout, News, etc.) to generate comprehensive responses.
+
+<Warning>
+**Rate Limit:** 10 queries per minute per IP address
+</Warning>
+
+## Request Body
+
+<ParamField body="query" type="string">
+  The natural language query to process. Can be omitted if `imageData` is provided.
+  
+  Example: `"What is the current price of Bitcoin?"`
+</ParamField>
+
+<ParamField body="txHash" type="string" required>
+  USDC payment transaction hash for query verification. The transaction must be confirmed on-chain.
+  
+  Example: `"0x1234567890abcdef..."`
+</ParamField>
+
+<ParamField body="userAddress" type="string" required>
+  Wallet address of the user making the payment.
+  
+  Example: `"0xabcdef1234567890..."`
+</ParamField>
+
+<ParamField body="imageData" type="string">
+  Base64-encoded image data for image-based queries. Allows image-only queries when `query` is omitted.
+</ParamField>
+
+<ParamField body="conversationHistory" type="array">
+  Array of previous messages for context-aware responses.
+  
+  ```json
+  [
+    { "role": "user", "content": "Previous question" },
+    { "role": "assistant", "content": "Previous answer" }
+  ]
+  ```
+</ParamField>
+
+<ParamField body="sessionId" type="string">
+  Session identifier for tracking conversation state and spending across multiple queries.
+</ParamField>
+
+<ParamField body="budgetUsd" type="number" default="1">
+  Maximum budget in USD for x402 agent calls during this query. Prevents runaway costs.
+  
+  Defaults to `X402_DEFAULT_BUDGET_USD` environment variable (1 USD).
+</ParamField>
+
+## Response Fields
+
+<ResponseField name="success" type="boolean" required>
+  Indicates whether the query was processed successfully.
+</ResponseField>
+
+<ResponseField name="response" type="string" required>
+  AI-generated response to the user's query.
+</ResponseField>
+
+<ResponseField name="agentsUsed" type="array" required>
+  List of agent IDs that were called to generate the response.
+  
+  Example: `["oracle", "scout", "news"]`
+</ResponseField>
+
+<ResponseField name="cost" type="string" required>
+  Query cost in USDC (always "0.03" for direct user queries).
+</ResponseField>
+
+<ResponseField name="txHash" type="string" required>
+  The verified payment transaction hash.
+</ResponseField>
+
+<ResponseField name="traceId" type="string">
+  Unique identifier for this query's execution trace.
+</ResponseField>
+
+<ResponseField name="totalSpendUsd" type="number">
+  Total USD spent on x402 agent calls during query processing.
+</ResponseField>
+
+<ResponseField name="trace" type="object">
+  Detailed execution trace with budget tracking and agent call logs.
+  
+  <Expandable title="Trace Object">
+    <ResponseField name="trace.traceId" type="string">
+      Unique trace identifier.
+    </ResponseField>
+    
+    <ResponseField name="trace.totalSpendUsd" type="number">
+      Total USD spent during execution.
+    </ResponseField>
+    
+    <ResponseField name="trace.budget" type="object">
+      Budget tracking information.
+      
+      <ResponseField name="trace.budget.limitUsd" type="number">
+        Maximum budget limit in USD.
+      </ResponseField>
+      
+      <ResponseField name="trace.budget.spentUsdStart" type="number">
+        USD spent at start of query.
+      </ResponseField>
+      
+      <ResponseField name="trace.budget.spentUsdEnd" type="number">
+        USD spent at end of query.
+      </ResponseField>
+      
+      <ResponseField name="trace.budget.remainingUsdEnd" type="number">
+        Remaining budget after query.
+      </ResponseField>
+    </ResponseField>
+    
+    <ResponseField name="trace.steps" type="array">
+      Array of execution steps showing agent calls, tool usage, and decisions.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST http://localhost:3001/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What is the current price of Bitcoin?",
+    "txHash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "userAddress": "0xabcdef1234567890abcdef1234567890abcdef12"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('http://localhost:3001/query', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    query: 'What is the current price of Bitcoin?',
+    txHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+    userAddress: '0xabcdef1234567890abcdef1234567890abcdef12',
+    sessionId: 'session-abc-123',
+    budgetUsd: 1.5
+  })
+});
+
+const data = await response.json();
+console.log(data.response);
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'http://localhost:3001/query',
+    json={
+        'query': 'What is the current price of Bitcoin?',
+        'txHash': '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        'userAddress': '0xabcdef1234567890abcdef1234567890abcdef12',
+        'budgetUsd': 1.5
+    }
+)
+
+data = response.json()
+print(data['response'])
+```
+
+</CodeGroup>
+
+## Response Example
+
+```json
+{
+  "success": true,
+  "response": "Bitcoin (BTC) is currently trading at $67,234.56 USD with a 24-hour change of +2.3%. The market cap is $1.32T with a 24-hour volume of $28.4B.",
+  "agentsUsed": ["oracle"],
+  "cost": "0.03",
+  "txHash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+  "traceId": "trace-1234567890-abc123",
+  "totalSpendUsd": 0.01,
+  "trace": {
+    "traceId": "trace-1234567890-abc123",
+    "totalSpendUsd": 0.01,
+    "budget": {
+      "limitUsd": 1.5,
+      "spentUsdStart": 0,
+      "spentUsdEnd": 0.01,
+      "remainingUsdEnd": 1.49
+    },
+    "steps": [
+      {
+        "toolName": "fetchPrice",
+        "agentId": "oracle",
+        "endpoint": "/api/x402/oracle/price",
+        "amountUsd": 0.01,
+        "success": true,
+        "latencyMs": 234
+      }
+    ]
+  }
+}
+```
+
+## Error Responses
+
+### Missing Required Fields
+
+```json
+{
+  "success": false,
+  "error": "Query or image is required"
+}
+```
+
+### Payment Verification Failed
+
+```json
+{
+  "success": false,
+  "error": "Payment verification failed: Transaction not found"
+}
+```
+
+### Payment Transaction Failed
+
+```json
+{
+  "success": false,
+  "error": "Payment transaction failed"
+}
+```
+
+### AI Generation Failed (Payment Confirmed)
+
+```json
+{
+  "success": false,
+  "error": "Payment Confirmed, but AI Generation failed: API rate limit exceeded. Payment verification was successful (Block: 12345678).",
+  "txHash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+}
+```
+
+### Rate Limit Exceeded
+
+```json
+{
+  "error": "Query rate limit exceeded. Please wait before sending more queries."
+}
+```
+
+## Payment Flow
+
+<Steps>
+  <Step title="User Sends USDC Payment">
+    User initiates a USDC transfer transaction worth $0.03 to the marketplace contract.
+  </Step>
+  
+  <Step title="Submit Query with Transaction Hash">
+    Frontend submits the query along with `txHash` and `userAddress` to the `/query` endpoint.
+  </Step>
+  
+  <Step title="Backend Verifies Payment">
+    Backend calls `publicClient.waitForTransactionReceipt()` to verify:
+    - Transaction is mined
+    - Transaction status is 'success'
+    - Transaction matches the provided hash
+  </Step>
+  
+  <Step title="AI Processing">
+    Once verified, the query is processed using Gemini and x402 agents with budget tracking.
+  </Step>
+  
+  <Step title="Response Returned">
+    AI response, agent usage, and spending details are returned to the user.
+  </Step>
+</Steps>
+
+## Legacy Flow (Backward Compatibility)
+
+If `txHash` is not provided, the backend falls back to the legacy escrow-based flow:
+
+```javascript
+// Legacy: Backend creates escrow automatically
+const result = await resellerAgent.processQuery(query);
+```
+
+This mode is maintained for backward compatibility but is not the recommended approach.
+
+## Budget Management
+
+The `budgetUsd` parameter controls spending on x402 agent calls during query processing:
+
+- **Default**: 1 USD (configurable via `X402_DEFAULT_BUDGET_USD` environment variable)
+- **Purpose**: Prevents runaway costs if AI makes excessive agent calls
+- **Behavior**: Query execution stops when budget is exhausted
+- **Tracking**: Real-time budget tracking in the trace object
+
+<Tip>
+For complex queries requiring multiple agent calls, consider increasing the budget to 2-5 USD.
+</Tip>
+
+## Related Endpoints
+
+- [GET /providers](/api/providers) - Discover available agents
+- [GET /dashboard/stats](/api/dashboard#get-dashboard-stats) - View query statistics
+- [GET /dashboard/spend](/api/dashboard#get-dashboard-spend) - Track session spending

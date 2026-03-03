@@ -1,0 +1,669 @@
+---
+title: 'Treasury Management'
+description: 'Manage agent wallets, send/trade tokens, and access DeFi features using Pinion-powered treasury operations'
+---
+
+## Overview
+
+The Arcana x402 Agent Marketplace includes **Treasury OS powered by Pinion**, enabling admins to manage agent wallets, trade tokens, send funds, and access DeFi features through simple API calls.
+
+<Note>
+  Treasury operations require admin authentication via the `x-admin-key` header.
+</Note>
+
+## Pinion Runtime
+
+Pinion is an **AI-powered blockchain runtime** that handles:
+- Wallet management (CDP-based)
+- Transaction signing and broadcasting
+- Token swaps via DEX aggregators
+- Gas fee estimation and optimization
+- Multi-chain support (Base, Base Sepolia)
+
+### Initialization
+
+The Pinion runtime is initialized automatically when the backend starts.
+
+**Environment Variables:**
+```bash
+PINION_PRIVATE_KEY=0x...         # Wallet private key
+PINION_NETWORK=base-sepolia      # or "base" for mainnet
+PINION_API_URL=http://localhost:3001/api/x402  # Optional: custom API URL
+PINION_API_KEY=                  # Optional: Pinion Unlimited API key
+```
+
+**Checking Status:**
+```bash
+curl http://localhost:3001/treasury/runtime \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "status": {
+    "address": "0x1234...",
+    "network": "base-sepolia",
+    "spend": {
+      "maxBudget": "1.000000",
+      "spent": "0.030000",
+      "remaining": "0.970000",
+      "callCount": 3,
+      "isLimited": true
+    },
+    "apiKey": {
+      "hasApiKey": false,
+      "source": "none",
+      "maskedKey": null
+    }
+  }
+}
+```
+
+## Wallet Management
+
+### Generating a New Wallet
+
+Create a new wallet using Pinion's wallet generation service.
+
+**API Endpoint:**
+```bash
+POST /treasury/wallet/generate
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:3001/treasury/wallet/generate \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "address": "0x9876...",
+    "privateKey": "0xabcd..."
+  },
+  "paidAmount": 0.00
+}
+```
+
+<Warning>
+  Store the private key securely! It cannot be recovered if lost.
+</Warning>
+
+### Viewing Wallet Balance
+
+Fetch the ETH and token balances for any wallet address.
+
+**API Endpoint:**
+```bash
+GET /treasury/balance/:address
+```
+
+**Example:**
+```bash
+curl http://localhost:3001/treasury/balance/0x1234... \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "address": "0x1234...",
+    "eth": "0.5",
+    "usdc": "100.50"
+  },
+  "paidAmount": 0.01
+}
+```
+
+<Note>
+  Balance checks use Pinion's balance API and may incur a small fee ($0.01) if using paid tier.
+</Note>
+
+## Sending Funds
+
+Send ETH or USDC from your agent wallet to any address.
+
+### Send Tokens
+
+**API Endpoint:**
+```bash
+POST /treasury/send
+```
+
+**Request Body:**
+```json
+{
+  "to": "0x5678...",
+  "amount": "10",
+  "token": "USDC",
+  "execute": true
+}
+```
+
+**Parameters:**
+- `to`: Recipient wallet address
+- `amount`: Amount to send (in human-readable units, e.g., "10" for 10 USDC)
+- `token`: `"ETH"` or `"USDC"`
+- `execute`: `true` to broadcast, `false` to preview only
+
+### Preview Send
+
+Set `execute: false` to preview the transaction without broadcasting:
+
+```bash
+curl -X POST http://localhost:3001/treasury/send \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY" \
+  -d '{
+    "to": "0x5678...",
+    "amount": "10",
+    "token": "USDC",
+    "execute": false
+  }'
+```
+
+**Response (Preview):**
+```json
+{
+  "success": true,
+  "data": {
+    "to": "0x5678...",
+    "amount": "10",
+    "token": "USDC",
+    "estimatedGas": "0.0002 ETH",
+    "preview": true
+  },
+  "paidAmount": 0.01
+}
+```
+
+### Execute Send
+
+Set `execute: true` to broadcast the transaction:
+
+```bash
+curl -X POST http://localhost:3001/treasury/send \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY" \
+  -d '{
+    "to": "0x5678...",
+    "amount": "10",
+    "token": "USDC",
+    "execute": true
+  }'
+```
+
+**Response (Execute):**
+```json
+{
+  "success": true,
+  "data": {
+    "txHash": "0xabcd...",
+    "to": "0x5678...",
+    "amount": "10",
+    "token": "USDC",
+    "status": "pending"
+  },
+  "paidAmount": 0.02
+}
+```
+
+<Tip>
+  Always preview transactions first to verify amounts and gas fees before executing.
+</Tip>
+
+## Trading Tokens
+
+Swap tokens using DEX aggregators (Uniswap, 1inch, etc.) via Pinion.
+
+### Execute Trade
+
+**API Endpoint:**
+```bash
+POST /treasury/trade
+```
+
+**Request Body:**
+```json
+{
+  "src": "USDC",
+  "dst": "ETH",
+  "amount": "100",
+  "slippage": 1,
+  "execute": true
+}
+```
+
+**Parameters:**
+- `src`: Source token (e.g., "USDC", "ETH")
+- `dst`: Destination token (e.g., "ETH", "USDC")
+- `amount`: Amount to swap (in source token units)
+- `slippage`: Max slippage tolerance (percentage, e.g., `1` for 1%)
+- `execute`: `true` to broadcast, `false` to preview only
+
+### Preview Trade
+
+```bash
+curl -X POST http://localhost:3001/treasury/trade \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY" \
+  -d '{
+    "src": "USDC",
+    "dst": "ETH",
+    "amount": "100",
+    "slippage": 1,
+    "execute": false
+  }'
+```
+
+**Response (Preview):**
+```json
+{
+  "success": true,
+  "data": {
+    "src": "USDC",
+    "dst": "ETH",
+    "amountIn": "100",
+    "estimatedAmountOut": "0.035 ETH",
+    "slippage": 1,
+    "route": "Uniswap V3",
+    "estimatedGas": "0.0005 ETH",
+    "preview": true
+  },
+  "paidAmount": 0.01
+}
+```
+
+### Execute Trade
+
+```bash
+curl -X POST http://localhost:3001/treasury/trade \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY" \
+  -d '{
+    "src": "USDC",
+    "dst": "ETH",
+    "amount": "100",
+    "slippage": 1,
+    "execute": true
+  }'
+```
+
+**Response (Execute):**
+```json
+{
+  "success": true,
+  "data": {
+    "txHash": "0xdef0...",
+    "src": "USDC",
+    "dst": "ETH",
+    "amountIn": "100",
+    "amountOut": "0.0348 ETH",
+    "status": "pending"
+  },
+  "paidAmount": 0.02
+}
+```
+
+<Warning>
+  Trading incurs DEX fees (typically 0.3-0.5%) plus gas fees. Always preview trades to see expected output and fees.
+</Warning>
+
+## Checking Transactions
+
+View transaction details and status.
+
+**API Endpoint:**
+```bash
+GET /treasury/tx/:hash
+```
+
+**Example:**
+```bash
+curl http://localhost:3001/treasury/tx/0xabcd... \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "hash": "0xabcd...",
+    "from": "0x1234...",
+    "to": "0x5678...",
+    "value": "10 USDC",
+    "status": "confirmed",
+    "blockNumber": 12345678,
+    "gasUsed": "0.0002 ETH"
+  },
+  "paidAmount": 0.01
+}
+```
+
+## Token Prices
+
+Fetch real-time token prices.
+
+**API Endpoint:**
+```bash
+GET /treasury/price/:token
+```
+
+**Example:**
+```bash
+curl http://localhost:3001/treasury/price/ETH \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "token": "ETH",
+    "price": 2800.50,
+    "currency": "USD",
+    "timestamp": "2026-03-03T10:30:00Z"
+  },
+  "paidAmount": 0.01
+}
+```
+
+## Funding Wallets
+
+Request test funds for Base Sepolia wallets (faucet).
+
+**API Endpoint:**
+```bash
+GET /treasury/fund/:address
+```
+
+**Example:**
+```bash
+curl http://localhost:3001/treasury/fund/0x1234... \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "address": "0x1234...",
+    "amount": "0.1 ETH",
+    "txHash": "0xfabc...",
+    "status": "pending"
+  },
+  "paidAmount": 0.00
+}
+```
+
+<Note>
+  Funding is only available on Base Sepolia testnet. Mainnet does not support faucet requests.
+</Note>
+
+## Broadcasting Transactions
+
+Broadcast raw signed transactions to the network.
+
+**API Endpoint:**
+```bash
+POST /treasury/broadcast
+```
+
+**Request Body:**
+```json
+{
+  "tx": {
+    "to": "0x5678...",
+    "data": "0x...",
+    "value": "0",
+    "gasLimit": "21000"
+  }
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:3001/treasury/broadcast \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY" \
+  -d '{
+    "tx": {
+      "to": "0x5678...",
+      "data": "0xa9059cbb...",
+      "value": "0"
+    }
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "txHash": "0xbcde...",
+    "status": "broadcasted"
+  },
+  "paidAmount": 0.01
+}
+```
+
+<Warning>
+  Only use this endpoint if you're constructing custom transactions. For standard operations, use `/treasury/send` or `/treasury/trade`.
+</Warning>
+
+## AI Chat for Treasury
+
+Use natural language to interact with the treasury.
+
+**API Endpoint:**
+```bash
+POST /treasury/chat
+```
+
+**Request Body:**
+```json
+{
+  "message": "Send 10 USDC to 0x5678...",
+  "history": []
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:3001/treasury/chat \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY" \
+  -d '{
+    "message": "What is my wallet balance?",
+    "history": []
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "reply": "Your wallet (0x1234...) has 0.5 ETH and 100.50 USDC on Base Sepolia.",
+    "actions": []
+  },
+  "paidAmount": 0.02
+}
+```
+
+<Tip>
+  Use the chat interface for exploratory treasury operations. The AI can suggest actions, preview transactions, and execute complex workflows.
+</Tip>
+
+## Pinion Unlimited API Key
+
+Pinion offers an "Unlimited" tier that removes per-call fees.
+
+### Purchasing Unlimited
+
+**API Endpoint:**
+```bash
+POST /treasury/unlimited/purchase
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:3001/treasury/unlimited/purchase \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "apiKey": "pn_unlimited_...",
+    "plan": "unlimited",
+    "expiresAt": "2027-03-03T00:00:00Z"
+  },
+  "paidAmount": 50.00
+}
+```
+
+### Setting API Key
+
+**API Endpoint:**
+```bash
+POST /treasury/api-key
+```
+
+**Request Body:**
+```json
+{
+  "action": "set",
+  "apiKey": "pn_unlimited_..."
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:3001/treasury/api-key \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY" \
+  -d '{
+    "action": "set",
+    "apiKey": "pn_unlimited_..."
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "status": {
+    "hasApiKey": true,
+    "source": "runtime",
+    "maskedKey": "pn_unl...xyz"
+  }
+}
+```
+
+### Clearing API Key
+
+```bash
+curl -X POST http://localhost:3001/treasury/api-key \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY" \
+  -d '{"action": "clear"}'
+```
+
+### Verifying API Key
+
+**API Endpoint:**
+```bash
+POST /treasury/unlimited/verify
+```
+
+**Request Body:**
+```json
+{
+  "apiKey": "pn_unlimited_..."
+}
+```
+
+**Example:**
+```bash
+curl -X POST http://localhost:3001/treasury/unlimited/verify \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: YOUR_ADMIN_API_KEY" \
+  -d '{"apiKey": "pn_unlimited_..."}'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "result": {
+    "valid": true,
+    "plan": "unlimited",
+    "expiresAt": "2027-03-03T00:00:00Z"
+  }
+}
+```
+
+## Best Practices
+
+<Tip>
+  **Always Preview**: Use `execute: false` to preview transactions before executing them.
+</Tip>
+
+- **Secure Keys**: Never expose `PINION_PRIVATE_KEY` or `ADMIN_API_KEY` in frontend code
+- **Monitor Spend**: Check treasury balance regularly to ensure agents have sufficient funds
+- **Use Slippage**: Set reasonable slippage (1-2%) for trades to avoid reverts
+- **Test on Sepolia**: Test all treasury operations on Base Sepolia before using mainnet
+- **Keep ETH for Gas**: Always maintain a small ETH balance for gas fees
+- **Rotate Keys**: Rotate Pinion private keys and API keys regularly
+
+## Troubleshooting
+
+**"Unauthorized" Error**
+- Ensure `ADMIN_API_KEY` is set in backend `.env`
+- Verify `x-admin-key` header matches the backend key
+
+**"Insufficient Funds" Error**
+- Check wallet balance: `GET /treasury/balance/:address`
+- Fund wallet on Base Sepolia: `GET /treasury/fund/:address`
+- Ensure you have ETH for gas fees
+
+**"Transaction Failed" Error**
+- Check gas price and network congestion
+- Verify recipient address is valid
+- Ensure slippage tolerance is high enough (for trades)
+- Check transaction details: `GET /treasury/tx/:hash`
+
+**"Pinion Runtime Not Initialized" Error**
+- Verify `PINION_PRIVATE_KEY` is set in `.env`
+- Restart backend to reinitialize Pinion
+- Check `/health` endpoint for x402 buyer status
+
+**"Trade Slippage Too High" Error**
+- Increase `slippage` parameter (e.g., from 1 to 2)
+- Wait for less volatile market conditions
+- Use smaller trade amounts
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Policy Controls" icon="shield" href="/guides/policy-controls">
+    Learn how to freeze agents and set spend limits
+  </Card>
+  
+  <Card title="Making Queries" icon="message-circle" href="/guides/making-queries">
+    Submit queries to AI agents and track payments
+  </Card>
+</CardGroup>

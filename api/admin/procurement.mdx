@@ -1,0 +1,584 @@
+---
+title: 'Procurement Routing API'
+description: 'Trust layer for x402 service procurement: rank candidates, execute with circuit breakers, and enforce policies'
+icon: 'route'
+---
+
+## Overview
+
+The procurement layer provides intelligent routing for x402 HTTP payments with:
+
+- **Circuit breakers** - Auto-disable failing providers
+- **Quality scoring** - Track success rates, latency, and response quality
+- **Policy enforcement** - Domain allowlists, spending caps, network restrictions
+- **Automatic retries** - Fallback to next-best candidate on failure
+
+---
+
+## Rank Candidates
+
+<RequestExample>
+```bash POST /x402/procurement/rank
+curl -X POST https://api.example.com/x402/procurement/rank \
+  -H "Content-Type: application/json" \
+  -d '{
+    "intent": "fetch-oracle-price",
+    "candidates": [
+      {
+        "id": "oracle-a",
+        "url": "https://oracle-a.example.com/api/price",
+        "method": "GET",
+        "maxAmountAtomic": "10000"
+      },
+      {
+        "id": "oracle-b",
+        "url": "https://oracle-b.example.com/api/price",
+        "method": "GET",
+        "maxAmountAtomic": "15000"
+      }
+    ],
+    "policy": {
+      "maxAmountAtomic": "20000",
+      "requireHttps": true,
+      "requireX402": true
+    }
+  }'
+```
+</RequestExample>
+
+**Request Body**
+
+<ParamField body="intent" type="string" required>
+  Human-readable intent label (e.g., "fetch-oracle-price", "query-chain-data")
+</ParamField>
+
+<ParamField body="candidates" type="array" required>
+  Array of candidate x402 endpoints
+  
+  <Expandable title="Candidate Object">
+    <ParamField body="id" type="string" required>
+      Unique identifier for this provider
+    </ParamField>
+    
+    <ParamField body="url" type="string" required>
+      Full endpoint URL
+    </ParamField>
+    
+    <ParamField body="method" type="string">
+      HTTP method (GET, POST, PUT, PATCH, DELETE). Default: GET
+    </ParamField>
+    
+    <ParamField body="body" type="any">
+      Request body for POST/PUT/PATCH requests
+    </ParamField>
+    
+    <ParamField body="headers" type="object">
+      Custom request headers (payment headers are auto-added)
+    </ParamField>
+    
+    <ParamField body="maxAmountAtomic" type="string">
+      Maximum payment in atomic units (e.g., "10000" = $0.01 USDC)
+    </ParamField>
+    
+    <ParamField body="expectedFields" type="string[]">
+      Expected response fields for schema validation
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="policy" type="object">
+  Optional policy constraints
+  
+  <Expandable title="Policy Fields">
+    <ParamField body="allowedDomains" type="string[]">
+      Domain allowlist (e.g., ["example.com", "trusted.io"])
+    </ParamField>
+    
+    <ParamField body="blockedDomains" type="string[]">
+      Domain blocklist
+    </ParamField>
+    
+    <ParamField body="maxAmountAtomic" type="string">
+      Maximum payment cap (overrides candidate limits)
+    </ParamField>
+    
+    <ParamField body="requireHttps" type="boolean">
+      Require HTTPS (default: true, except localhost)
+    </ParamField>
+    
+    <ParamField body="requireX402" type="boolean">
+      Require 402 Payment Required status (default: true)
+    </ParamField>
+    
+    <ParamField body="networkAllowlist" type="string[]">
+      Allowed payment networks (e.g., ["eip155:8453"])
+    </ParamField>
+    
+    <ParamField body="payToAllowlist" type="string[]">
+      Allowed payment recipient addresses
+    </ParamField>
+    
+    <ParamField body="maxAttempts" type="number">
+      Max retry attempts (1-10, default: 3)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "intent": "fetch-oracle-price",
+  "selected": {
+    "id": "oracle-a",
+    "url": "https://oracle-a.example.com/api/price",
+    "score": 0.87
+  },
+  "ranked": [
+    {
+      "candidate": {
+        "id": "oracle-a",
+        "url": "https://oracle-a.example.com/api/price",
+        "method": "GET",
+        "maxAmountAtomic": "10000"
+      },
+      "allowed": true,
+      "score": 0.87,
+      "reasons": [],
+      "metrics": {
+        "successRate": 0.98,
+        "schemaRate": 1.0,
+        "qualityScoreAvg": 0.92,
+        "avgLatencyMs": 150,
+        "latencyScore": 0.975,
+        "priceScore": 0.99,
+        "circuitOpen": false
+      }
+    },
+    {
+      "candidate": {
+        "id": "oracle-b",
+        "url": "https://oracle-b.example.com/api/price",
+        "method": "GET",
+        "maxAmountAtomic": "15000"
+      },
+      "allowed": false,
+      "score": 0.0,
+      "reasons": ["Circuit breaker is open"],
+      "metrics": {
+        "successRate": 0.45,
+        "schemaRate": 0.5,
+        "qualityScoreAvg": 0.4,
+        "avgLatencyMs": 3500,
+        "latencyScore": 0.42,
+        "priceScore": 0.985,
+        "circuitOpen": true
+      }
+    }
+  ]
+}
+```
+</ResponseExample>
+
+**Response Fields**
+
+<ResponseField name="success" type="boolean" required>
+  Whether the request succeeded
+</ResponseField>
+
+<ResponseField name="intent" type="string" required>
+  Echo of the request intent
+</ResponseField>
+
+<ResponseField name="selected" type="object">
+  The highest-scoring allowed candidate (null if none passed)
+</ResponseField>
+
+<ResponseField name="ranked" type="array" required>
+  All candidates sorted by score (highest first)
+  
+  <Expandable title="Ranked Entry">
+    <ResponseField name="allowed" type="boolean">
+      Whether this candidate passed policy checks
+    </ResponseField>
+    
+    <ResponseField name="score" type="number">
+      Composite quality score (0.0-1.0)
+    </ResponseField>
+    
+    <ResponseField name="reasons" type="string[]">
+      Policy rejection reasons (empty if allowed)
+    </ResponseField>
+    
+    <ResponseField name="metrics" type="object">
+      Historical performance metrics
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Note>
+  The `rank` endpoint does not execute calls—it only scores candidates. Use `/x402/procurement/execute` to actually invoke a service.
+</Note>
+
+---
+
+## Execute Procurement
+
+<RequestExample>
+```bash POST /x402/procurement/execute
+curl -X POST https://api.example.com/x402/procurement/execute \
+  -H "x-admin-key: your-admin-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "intent": "fetch-oracle-price",
+    "candidates": [
+      {
+        "id": "oracle-a",
+        "url": "https://oracle-a.example.com/api/price?symbol=BTC",
+        "method": "GET",
+        "maxAmountAtomic": "10000",
+        "expectedFields": ["price", "symbol"]
+      }
+    ],
+    "policy": {
+      "maxAmountAtomic": "20000",
+      "requireX402": true,
+      "maxAttempts": 2
+    }
+  }'
+```
+</RequestExample>
+
+<Warning>
+  This endpoint requires admin authentication via `x-admin-key` header.
+</Warning>
+
+**Request Body**
+
+Identical to `/x402/procurement/rank` (see above).
+
+<ResponseExample>
+```json Success
+{
+  "success": true,
+  "ranking": {
+    "intent": "fetch-oracle-price",
+    "selected": {
+      "id": "oracle-a",
+      "url": "https://oracle-a.example.com/api/price?symbol=BTC",
+      "score": 0.87
+    },
+    "ranked": [...]
+  },
+  "selected": {
+    "id": "oracle-a",
+    "url": "https://oracle-a.example.com/api/price?symbol=BTC",
+    "score": 0.87
+  },
+  "receipt": {
+    "id": "proc-1234567890-abc123",
+    "intent": "fetch-oracle-price",
+    "providerId": "oracle-a",
+    "url": "https://oracle-a.example.com/api/price?symbol=BTC",
+    "method": "GET",
+    "status": 200,
+    "paidAmountAtomic": "10000",
+    "responseHash": "d4f3a2...",
+    "latencyMs": 145,
+    "success": true,
+    "schemaOk": true,
+    "score": 0.87,
+    "txHash": "0xabc...",
+    "payTo": "0x1234...",
+    "attempt": 1,
+    "error": null,
+    "createdAt": "2026-03-03T10:30:00.000Z"
+  },
+  "schemaOk": true,
+  "response": {
+    "price": 65000.0,
+    "symbol": "BTC"
+  },
+  "status": 200,
+  "paidAmountAtomic": "10000"
+}
+```
+</ResponseExample>
+
+**Response Fields**
+
+<ResponseField name="success" type="boolean" required>
+  Whether execution succeeded
+</ResponseField>
+
+<ResponseField name="ranking" type="object" required>
+  Full ranking results (same as `/rank` endpoint)
+</ResponseField>
+
+<ResponseField name="selected" type="object" required>
+  The candidate that was executed
+</ResponseField>
+
+<ResponseField name="receipt" type="object" required>
+  Execution receipt with payment and performance data
+  
+  <Expandable title="Receipt Fields">
+    <ResponseField name="id" type="string">
+      Unique receipt ID
+    </ResponseField>
+    
+    <ResponseField name="intent" type="string">
+      Request intent label
+    </ResponseField>
+    
+    <ResponseField name="providerId" type="string">
+      Candidate ID that was executed
+    </ResponseField>
+    
+    <ResponseField name="status" type="number">
+      HTTP response status code
+    </ResponseField>
+    
+    <ResponseField name="paidAmountAtomic" type="string">
+      Amount paid in atomic units (e.g., "10000" = $0.01)
+    </ResponseField>
+    
+    <ResponseField name="responseHash" type="string">
+      SHA-256 hash of response body
+    </ResponseField>
+    
+    <ResponseField name="latencyMs" type="number">
+      Round-trip time in milliseconds
+    </ResponseField>
+    
+    <ResponseField name="success" type="boolean">
+      Whether HTTP status was 2xx
+    </ResponseField>
+    
+    <ResponseField name="schemaOk" type="boolean">
+      Whether response matched expectedFields
+    </ResponseField>
+    
+    <ResponseField name="txHash" type="string">
+      Blockchain transaction hash (if found in response)
+    </ResponseField>
+    
+    <ResponseField name="payTo" type="string">
+      Payment recipient address
+    </ResponseField>
+    
+    <ResponseField name="attempt" type="number">
+      Which attempt succeeded (1-based)
+    </ResponseField>
+    
+    <ResponseField name="error" type="string">
+      Error message (null if success)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="response" type="any" required>
+  The actual API response data
+</ResponseField>
+
+<ResponseField name="schemaOk" type="boolean" required>
+  Whether response matched expected schema
+</ResponseField>
+
+<ResponseField name="status" type="number" required>
+  HTTP response status code
+</ResponseField>
+
+<ResponseField name="paidAmountAtomic" type="string" required>
+  Amount paid for the successful call
+</ResponseField>
+
+---
+
+## Get Procurement State
+
+<RequestExample>
+```bash GET /x402/procurement/state
+curl -X GET https://api.example.com/x402/procurement/state
+```
+</RequestExample>
+
+Returns current provider performance stats and recent receipts.
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "providers": [
+    {
+      "id": "oracle-a",
+      "calls": 245,
+      "successes": 240,
+      "failures": 5,
+      "avgLatencyMs": 150.5,
+      "schemaPasses": 240,
+      "qualityScoreAvg": 0.92,
+      "consecutiveFailures": 0,
+      "circuitOpenUntil": null,
+      "lastStatus": 200,
+      "lastError": null,
+      "lastSeenAt": "2026-03-03T10:30:00.000Z",
+      "updatedAt": "2026-03-03T10:30:00.000Z"
+    },
+    {
+      "id": "oracle-b",
+      "calls": 120,
+      "successes": 85,
+      "failures": 35,
+      "avgLatencyMs": 3200.0,
+      "schemaPasses": 80,
+      "qualityScoreAvg": 0.45,
+      "consecutiveFailures": 5,
+      "circuitOpenUntil": "2026-03-03T10:35:00.000Z",
+      "lastStatus": 500,
+      "lastError": "Internal Server Error",
+      "lastSeenAt": "2026-03-03T10:27:00.000Z",
+      "updatedAt": "2026-03-03T10:27:00.000Z"
+    }
+  ],
+  "receipts": [
+    {
+      "id": "proc-1234567890-abc123",
+      "intent": "fetch-oracle-price",
+      "providerId": "oracle-a",
+      "status": 200,
+      "success": true,
+      "latencyMs": 145,
+      "createdAt": "2026-03-03T10:30:00.000Z"
+    }
+  ],
+  "hydrated": true
+}
+```
+</ResponseExample>
+
+**Response Fields**
+
+<ResponseField name="providers" type="array" required>
+  All tracked providers with performance metrics
+</ResponseField>
+
+<ResponseField name="receipts" type="array" required>
+  Recent execution receipts (last 100)
+</ResponseField>
+
+<ResponseField name="hydrated" type="boolean" required>
+  Whether state has been loaded from database
+</ResponseField>
+
+---
+
+## Error Responses
+
+<ResponseExample>
+```json 400 Bad Request
+{
+  "success": false,
+  "error": "candidates[] is required"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json 401 Unauthorized
+{
+  "success": false,
+  "error": "Unauthorized"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json 502 Bad Gateway
+{
+  "success": false,
+  "error": "All procurement candidates failed. oracle-a: circuit breaker open | oracle-b: Domain blocked by policy: untrusted.com"
+}
+```
+</ResponseExample>
+
+---
+
+## Circuit Breaker Logic
+
+Providers are automatically disabled when:
+
+1. **Consecutive failures** >= `X402_PROCUREMENT_CIRCUIT_FAIL_THRESHOLD` (default: 3)
+2. Circuit opens for `X402_PROCUREMENT_CIRCUIT_OPEN_MS` (default: 180000ms = 3 minutes)
+3. During circuit open period, provider receives score of 0.0 and is skipped
+
+<Note>
+  Circuit breakers automatically reset after the timeout. No manual intervention required.
+</Note>
+
+---
+
+## Scoring Algorithm
+
+Composite score (0.0-1.0) is calculated as:
+
+```
+score = (0.35 × successRate)
+      + (0.15 × schemaRate)
+      + (0.20 × qualityScoreAvg)
+      + (0.15 × latencyScore)
+      + (0.15 × priceScore)
+      - (1.0 if circuitOpen else 0.0)
+```
+
+**Penalties:**
+- Circuit open: -1.0 (forces score to 0)
+- Policy violations: score set to 0.0
+
+---
+
+## Environment Variables
+
+<ParamField query="X402_PROCUREMENT_MAX_CANDIDATES" type="number" default="8">
+  Maximum candidates per request
+</ParamField>
+
+<ParamField query="X402_PROCUREMENT_ALLOWED_DOMAINS" type="string">
+  Comma-separated domain allowlist
+</ParamField>
+
+<ParamField query="X402_PROCUREMENT_BLOCKED_DOMAINS" type="string">
+  Comma-separated domain blocklist
+</ParamField>
+
+<ParamField query="X402_PROCUREMENT_NETWORK_ALLOWLIST" type="string">
+  Comma-separated network allowlist (e.g., "eip155:8453,eip155:84532")
+</ParamField>
+
+<ParamField query="X402_PROCUREMENT_PAYTO_ALLOWLIST" type="string">
+  Comma-separated address allowlist
+</ParamField>
+
+<ParamField query="X402_PROCUREMENT_MAX_AMOUNT_ATOMIC" type="string">
+  Global payment cap in atomic units
+</ParamField>
+
+<ParamField query="X402_PROCUREMENT_REQUIRE_HTTPS" type="boolean" default="true">
+  Require HTTPS for all endpoints
+</ParamField>
+
+<ParamField query="X402_PROCUREMENT_REQUIRE_X402" type="boolean" default="true">
+  Require 402 Payment Required status
+</ParamField>
+
+<ParamField query="X402_PROCUREMENT_MAX_ATTEMPTS" type="number" default="3">
+  Default max retry attempts
+</ParamField>
+
+<ParamField query="X402_PROCUREMENT_CIRCUIT_FAIL_THRESHOLD" type="number" default="3">
+  Consecutive failures to open circuit
+</ParamField>
+
+<ParamField query="X402_PROCUREMENT_CIRCUIT_OPEN_MS" type="number" default="180000">
+  Circuit breaker timeout in milliseconds
+</ParamField>

@@ -1,0 +1,281 @@
+---
+title: 'News Scout Agent'
+description: 'Real-time cryptocurrency news aggregation and sentiment analysis'
+---
+
+The News Scout Agent provides crypto news from multiple sources with trending topics and sentiment analysis.
+
+## Pricing
+
+Each request costs **$0.01 USD** (paid via x402 on Base Sepolia testnet).
+
+---
+
+## Search News
+
+Search crypto news articles by keyword or topic.
+
+```bash GET /api/x402/news/search
+curl "https://api.arcana.markets/api/x402/news/search?query=bitcoin&limit=10" \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Query Parameters
+
+<ParamField query="query" type="string" required>
+  Search keyword (e.g., `bitcoin`, `defi`, `ethereum`, `sec`)
+</ParamField>
+
+<ParamField query="limit" type="number" default="10">
+  Number of results to return (max 20)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request succeeded
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  <ResponseField name="articles" type="array">
+    Array of news articles matching the query
+    
+    <ResponseField name="title" type="string">
+      Article headline
+    </ResponseField>
+    
+    <ResponseField name="link" type="string">
+      Article URL
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Article summary or excerpt
+    </ResponseField>
+    
+    <ResponseField name="pubDate" type="string">
+      ISO 8601 publish date
+    </ResponseField>
+    
+    <ResponseField name="source" type="string">
+      News source name
+    </ResponseField>
+    
+    <ResponseField name="category" type="string">
+      Article category (e.g., "DeFi", "Bitcoin", "Regulation")
+    </ResponseField>
+    
+    <ResponseField name="timeAgo" type="string">
+      Human-readable relative time (e.g., "2h ago")
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="totalCount" type="number">
+    Total number of matching articles
+  </ResponseField>
+  
+  <ResponseField name="sources" type="string[]">
+    List of sources included in results
+  </ResponseField>
+  
+  <ResponseField name="fetchedAt" type="string">
+    ISO 8601 timestamp of data fetch
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="payment" type="object">
+  x402 payment receipt
+</ResponseField>
+
+<CodeGroup>
+
+```json Response Example
+{
+  "success": true,
+  "data": {
+    "articles": [
+      {
+        "title": "Bitcoin Surges Past $98,000 as ETF Inflows Hit Record High",
+        "link": "https://example.com/article",
+        "description": "Bitcoin reached a new all-time high today as institutional investors...",
+        "pubDate": "2026-03-03T10:30:00.000Z",
+        "source": "CoinDesk",
+        "category": "Bitcoin",
+        "timeAgo": "2h ago"
+      },
+      {
+        "title": "SEC Approves Ethereum Staking for Institutional Investors",
+        "link": "https://example.com/article2",
+        "description": "The Securities and Exchange Commission announced new guidelines...",
+        "pubDate": "2026-03-03T09:15:00.000Z",
+        "source": "The Block",
+        "category": "Regulation",
+        "timeAgo": "3h ago"
+      }
+    ],
+    "totalCount": 47,
+    "sources": ["CoinDesk", "The Block", "Decrypt", "CoinTelegraph"],
+    "fetchedAt": "2026-03-03T12:00:00.000Z"
+  },
+  "payment": { /* x402 receipt */ }
+}
+```
+
+</CodeGroup>
+
+---
+
+## Get Latest News
+
+Retrieve the most recent crypto news headlines from all sources.
+
+```bash GET /api/x402/news/latest
+curl "https://api.arcana.markets/api/x402/news/latest?limit=10" \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Query Parameters
+
+<ParamField query="limit" type="number" default="10">
+  Number of articles to return (max 20)
+</ParamField>
+
+### Response
+
+Returns the same structure as search, but sorted by most recent publish date.
+
+---
+
+## Get Breaking News
+
+Retrieve urgent breaking news from the last 15 minutes.
+
+```bash GET /api/x402/news/breaking
+curl https://api.arcana.markets/api/x402/news/breaking \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Response
+
+<ResponseField name="data" type="object">
+  Same structure as search/latest, filtered to articles from the last 15 minutes
+</ResponseField>
+
+<Note>
+Breaking news endpoint returns empty array if no articles published in the last 15 minutes.
+</Note>
+
+---
+
+## Get Trending Topics
+
+Retrieve trending topics with sentiment analysis based on recent article volume.
+
+```bash GET /api/x402/news/trending
+curl https://api.arcana.markets/api/x402/news/trending \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Response
+
+<ResponseField name="data" type="object">
+  <ResponseField name="trending" type="array">
+    Array of trending topics
+    
+    <ResponseField name="topic" type="string">
+      Topic or asset name
+    </ResponseField>
+    
+    <ResponseField name="count" type="number">
+      Number of mentions in articles
+    </ResponseField>
+    
+    <ResponseField name="sentiment" type="string">
+      Overall sentiment: `bullish`, `bearish`, or `neutral`
+    </ResponseField>
+    
+    <ResponseField name="recentHeadlines" type="string[]">
+      Sample headlines mentioning this topic
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="timeWindow" type="string">
+    Time window analyzed (e.g., "24h")
+  </ResponseField>
+  
+  <ResponseField name="articlesAnalyzed" type="number">
+    Total articles analyzed for trends
+  </ResponseField>
+  
+  <ResponseField name="fetchedAt" type="string">
+    ISO 8601 timestamp
+  </ResponseField>
+</ResponseField>
+
+<CodeGroup>
+
+```json Response Example
+{
+  "success": true,
+  "data": {
+    "trending": [
+      {
+        "topic": "Bitcoin",
+        "count": 127,
+        "sentiment": "bullish",
+        "recentHeadlines": [
+          "Bitcoin Hits New ATH as Institutions Double Down",
+          "MicroStrategy Buys Another 10,000 BTC"
+        ]
+      },
+      {
+        "topic": "Ethereum",
+        "count": 89,
+        "sentiment": "neutral",
+        "recentHeadlines": [
+          "Ethereum Developers Announce Pectra Upgrade Timeline",
+          "ETH Staking Yields Drop to 3.2% Amid High Participation"
+        ]
+      },
+      {
+        "topic": "SEC",
+        "count": 64,
+        "sentiment": "neutral",
+        "recentHeadlines": [
+          "SEC Chair Signals Clearer Crypto Framework Coming"
+        ]
+      }
+    ],
+    "timeWindow": "24h",
+    "articlesAnalyzed": 542,
+    "fetchedAt": "2026-03-03T12:00:00.000Z"
+  },
+  "payment": { /* x402 receipt */ }
+}
+```
+
+</CodeGroup>
+
+---
+
+## x402 Payment Flow
+
+All News Scout endpoints require payment via x402:
+
+- **Price**: $0.01 per request
+- **Network**: Base Sepolia (eip155:84532)
+- **Seller Address**: `0x32a6778E4D6634BaB9e54A9F78ff5D087179a5c4`
+
+### Data Sources
+
+News aggregated from:
+- CoinDesk
+- The Block
+- Decrypt
+- CoinTelegraph
+- CryptoSlate
+- Bitcoin Magazine
+- And 20+ other crypto news sites
+
+<Note>
+All endpoints use fallback cache if primary API is unavailable, ensuring high reliability.
+</Note>

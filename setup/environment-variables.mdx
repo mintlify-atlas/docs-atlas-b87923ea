@@ -1,0 +1,327 @@
+---
+title: Environment Variables
+description: Complete reference for all environment variables in the Arcana x402 Agent Marketplace
+icon: gear
+---
+
+## Backend Environment Variables
+
+Create a `.env` file in the `backend/` directory with the following variables:
+
+### Core Runtime
+
+<ParamField path="PORT" type="number" default="3001">
+  The port on which the backend server will run.
+</ParamField>
+
+<ParamField path="NODE_ENV" type="string" default="development">
+  The Node.js environment. Use `development` for local, `production` for deployed environments.
+</ParamField>
+
+<ParamField path="ALLOWED_ORIGINS" type="string" required>
+  Comma-separated list of allowed CORS origins.
+  
+  **Example:** `http://localhost:5173,http://localhost:3000,http://localhost:8080`
+</ParamField>
+
+### Required Keys
+
+<ParamField path="PRIVATE_KEY" type="string" required>
+  Ethereum private key for the deployer/orchestrator wallet. Must start with `0x`.
+  
+  <Warning>
+    Keep this secure and never commit to version control. This wallet needs Base Sepolia ETH for gas.
+  </Warning>
+</ParamField>
+
+<ParamField path="GEMINI_API_KEY" type="string" required>
+  API key for Google Gemini AI orchestration. Used to determine which specialist tools to call based on user queries.
+</ParamField>
+
+### Chain & Contract Configuration
+
+<ParamField path="CHAIN_ID" type="number" default="84532">
+  The blockchain chain ID. `84532` is Base Sepolia.
+</ParamField>
+
+<ParamField path="CHAIN_NAME" type="string" default="Base Sepolia">
+  Human-readable chain name.
+</ParamField>
+
+<ParamField path="CHAIN_RPC_URL" type="string" default="https://sepolia.base.org">
+  RPC endpoint URL for Base Sepolia.
+</ParamField>
+
+<ParamField path="CHAIN_EXPLORER_URL" type="string" default="https://sepolia.basescan.org">
+  Block explorer URL for transaction verification.
+</ParamField>
+
+<ParamField path="POLICY_VAULT_ADDRESS" type="string">
+  Deployed PolicyVault contract address. Set after running the deployment script.
+</ParamField>
+
+<ParamField path="ESCROW_ADDRESS" type="string">
+  Deployed Escrow contract address. Set after running the deployment script.
+</ParamField>
+
+<ParamField path="AGENT_REGISTRY_ADDRESS" type="string">
+  Deployed AgentRegistry contract address. Set after running the deployment script.
+</ParamField>
+
+<ParamField path="USDC_ADDRESS" type="string" default="0x036CbD53842c5426634e7929541eC2318f3dCF7e">
+  USDC token contract address on Base Sepolia.
+</ParamField>
+
+<ParamField path="EURC_ADDRESS" type="string" default="0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a">
+  EURC token contract address on Base Sepolia.
+</ParamField>
+
+<ParamField path="USYC_ADDRESS" type="string" default="0xe9185F0c5F296Ed1797AaE4238D26CCaBEadb86C">
+  USYC token contract address on Base Sepolia.
+</ParamField>
+
+### Supabase Configuration
+
+<ParamField path="SUPABASE_URL" type="string" required>
+  Your Supabase project URL.
+  
+  **Format:** `https://<project>.supabase.co`
+</ParamField>
+
+<ParamField path="SUPABASE_ANON_KEY" type="string" required>
+  Supabase anonymous/public API key for client connections.
+</ParamField>
+
+### x402 & CDP Configuration
+
+<ParamField path="X402_BASE_URL" type="string" default="http://localhost:3001">
+  Base URL for x402 protocol endpoints.
+</ParamField>
+
+<ParamField path="X402_FACILITATOR_URL" type="string" default="https://www.x402.org/facilitator">
+  URL of the x402 payment facilitator service.
+</ParamField>
+
+<ParamField path="X402_DEFAULT_BUDGET_USD" type="string" default="1.00">
+  Default budget in USD for x402 session spending limits.
+</ParamField>
+
+<ParamField path="X402_INIT_TIMEOUT_MS" type="number" default="15000">
+  Timeout in milliseconds for x402 initialization.
+</ParamField>
+
+<ParamField path="PINION_PRIVATE_KEY" type="string">
+  Private key for Pinion runtime wallet operations.
+</ParamField>
+
+<ParamField path="PINION_NETWORK" type="string" default="base-sepolia">
+  Network identifier for Pinion runtime.
+</ParamField>
+
+<ParamField path="PINION_API_URL" type="string" default="http://localhost:3001/api/x402">
+  API URL for Pinion integration.
+</ParamField>
+
+<ParamField path="PINION_API_KEY" type="string">
+  Optional API key for Pinion authentication.
+</ParamField>
+
+<ParamField path="CDP_API_KEY_ID" type="string">
+  Coinbase Developer Platform API key ID for wallet provisioning.
+</ParamField>
+
+<ParamField path="CDP_API_KEY_SECRET" type="string">
+  Coinbase Developer Platform API key secret.
+</ParamField>
+
+<ParamField path="CDP_WALLET_SECRET" type="string">
+  Secret for encrypting CDP wallet data.
+</ParamField>
+
+<ParamField path="X402_CDP_WALLET_REGISTRY_PATH" type="string" default="/x402/backend/cdp-wallets.json">
+  File path for storing CDP wallet registry.
+</ParamField>
+
+### Optional Agent Addresses
+
+Pin specific wallet addresses for each x402 agent:
+
+<ParamField path="X402_ORCHESTRATOR_ADDRESS" type="string">
+  Orchestrator wallet address.
+</ParamField>
+
+<ParamField path="ORACLE_X402_ADDRESS" type="string">
+  Price Oracle agent wallet address.
+</ParamField>
+
+<ParamField path="SCOUT_X402_ADDRESS" type="string">
+  Chain Scout agent wallet address.
+</ParamField>
+
+<ParamField path="NEWS_X402_ADDRESS" type="string">
+  News Scout agent wallet address.
+</ParamField>
+
+<ParamField path="YIELD_X402_ADDRESS" type="string">
+  Yield Optimizer agent wallet address.
+</ParamField>
+
+<ParamField path="TOKENOMICS_X402_ADDRESS" type="string">
+  Tokenomics Analyzer agent wallet address.
+</ParamField>
+
+<ParamField path="NFT_SCOUT_X402_ADDRESS" type="string">
+  NFT Scout agent wallet address.
+</ParamField>
+
+<ParamField path="PERP_STATS_X402_ADDRESS" type="string">
+  Perp Stats agent wallet address.
+</ParamField>
+
+### Policy Controls
+
+<ParamField path="X402_POLICY_DAILY_LIMIT_USD" type="string" default="1.00">
+  Maximum USD spending allowed per day per agent.
+</ParamField>
+
+<ParamField path="X402_POLICY_PER_CALL_LIMIT_USD" type="string" default="0.05">
+  Maximum USD spending allowed per individual x402 call.
+</ParamField>
+
+<ParamField path="ADMIN_API_KEY" type="string" default="change-me">
+  API key for admin endpoints (freeze/unfreeze agents, policy updates).
+  
+  <Warning>
+    Change this value in production and keep it secure. Do not expose to client-side code.
+  </Warning>
+</ParamField>
+
+### Optional External APIs
+
+<ParamField path="COINGECKO_API_KEY" type="string">
+  CoinGecko API key for price data.
+</ParamField>
+
+<ParamField path="ALCHEMY_API_KEY" type="string">
+  Alchemy API key for blockchain data.
+</ParamField>
+
+<ParamField path="ETHERSCAN_API_KEY" type="string">
+  Etherscan API key for contract verification and data.
+</ParamField>
+
+<ParamField path="OPENSEA_API_KEY" type="string">
+  OpenSea API key for NFT data.
+</ParamField>
+
+<ParamField path="GROQ_API_KEY" type="string">
+  Groq API key for additional AI capabilities.
+</ParamField>
+
+### News API Configuration
+
+<ParamField path="NEWS_API_BASE_URL" type="string" default="https://cryptocurrency.cv">
+  Primary news API endpoint.
+</ParamField>
+
+<ParamField path="NEWS_API_CACHE_BASE_URL" type="string" default="https://nirholas.github.io/free-crypto-news">
+  Fallback cache URL for news API.
+</ParamField>
+
+<ParamField path="NEWS_API_TIMEOUT_MS" type="number" default="5000">
+  Timeout in milliseconds for news API requests.
+</ParamField>
+
+<ParamField path="NEWS_API_RETRY_COUNT" type="number" default="0">
+  Number of retry attempts for failed news API requests.
+</ParamField>
+
+### Deploy Script Helpers
+
+<ParamField path="AGENT_ADDRESS" type="string">
+  Agent wallet address used during contract deployment.
+</ParamField>
+
+<ParamField path="DAILY_LIMIT" type="string" default="50">
+  Daily spending limit used during PolicyVault deployment (in token base units or ETH notation).
+</ParamField>
+
+## Frontend Environment Variables
+
+Create a `.env` file in the `arc-agent-hub/` directory:
+
+<ParamField path="VITE_API_URL" type="string" required>
+  Backend API base URL.
+  
+  **Example:** `http://localhost:3001`
+</ParamField>
+
+<ParamField path="VITE_PROVIDER_PAY_TO" type="string">
+  Default payment recipient address for provider payments.
+</ParamField>
+
+<ParamField path="VITE_ADMIN_ADDRESS" type="string">
+  Admin wallet address for frontend admin UI features.
+</ParamField>
+
+<ParamField path="VITE_ADMIN_API_KEY" type="string">
+  Admin API key for client-side admin operations.
+  
+  <Warning>
+    Only use in local/demo environments. Never expose admin keys in production client code.
+  </Warning>
+</ParamField>
+
+<Note>
+  All `VITE_*` prefixed variables are exposed to browser code. Never include sensitive secrets in frontend environment variables.
+</Note>
+
+## Example Configuration Files
+
+### Backend `.env` Example
+
+```env
+# Core runtime
+PORT=3001
+NODE_ENV=development
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:8080
+
+# Required
+PRIVATE_KEY=0x...
+GEMINI_API_KEY=...
+
+# Chain + contracts
+CHAIN_ID=84532
+CHAIN_NAME=Base Sepolia
+CHAIN_RPC_URL=https://sepolia.base.org
+CHAIN_EXPLORER_URL=https://sepolia.basescan.org
+POLICY_VAULT_ADDRESS=0x...
+ESCROW_ADDRESS=0x...
+AGENT_REGISTRY_ADDRESS=0x...
+USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
+
+# Supabase
+SUPABASE_URL=https://<project>.supabase.co
+SUPABASE_ANON_KEY=...
+
+# x402 + CDP
+X402_BASE_URL=http://localhost:3001
+X402_FACILITATOR_URL=https://www.x402.org/facilitator
+X402_DEFAULT_BUDGET_USD=1.00
+CDP_API_KEY_ID=...
+CDP_API_KEY_SECRET=...
+CDP_WALLET_SECRET=...
+
+# Policy controls
+X402_POLICY_DAILY_LIMIT_USD=1.00
+X402_POLICY_PER_CALL_LIMIT_USD=0.05
+ADMIN_API_KEY=change-me
+```
+
+### Frontend `.env` Example
+
+```env
+VITE_API_URL=http://localhost:3001
+VITE_PROVIDER_PAY_TO=0x...
+VITE_ADMIN_ADDRESS=0x...
+```

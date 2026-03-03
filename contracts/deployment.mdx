@@ -1,0 +1,256 @@
+---
+title: Contract Deployment
+description: Deploy Arcana x402 smart contracts to Base Sepolia
+---
+
+This guide walks through deploying the Arcana x402 smart contracts to Base Sepolia using the automated deployment script.
+
+## Prerequisites
+
+<Steps>
+  <Step title="Install Dependencies">
+    Install Node.js dependencies including ethers.js and solc:
+    
+    ```bash
+    cd backend
+    npm install
+    ```
+  </Step>
+  
+  <Step title="Configure Environment Variables">
+    Create a `backend/.env` file with the required configuration:
+    
+    ```bash
+    # Required: Deployer wallet private key
+    PRIVATE_KEY=your_private_key_here
+    
+    # Required: Agent wallet address for PolicyVault
+    AGENT_ADDRESS=0x...
+    
+    # Optional: Base Sepolia RPC URL (defaults to public endpoint)
+    CHAIN_RPC_URL=https://sepolia.base.org
+    
+    # Optional: Chain ID (defaults to 84532)
+    CHAIN_ID=84532
+    
+    # Optional: USDC token address on Base Sepolia
+    USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
+    
+    # Optional: Daily spending limit in ETH (defaults to 50)
+    DAILY_LIMIT=50
+    ```
+  </Step>
+  
+  <Step title="Fund Deployer Wallet">
+    Ensure your deployer wallet has sufficient ETH on Base Sepolia for gas fees. Get testnet ETH from:
+    
+    - [Base Sepolia Faucet](https://www.coinbase.com/faucets/base-ethereum-goerli-faucet)
+    - [Alchemy Faucet](https://sepoliafaucet.com/)
+  </Step>
+</Steps>
+
+## Environment Variables Reference
+
+<ParamField path="PRIVATE_KEY" type="string" required>
+  Private key of the deployer wallet (with 0x prefix)
+  
+  <Warning>
+    Never commit private keys to version control. Use environment variables or secure key management.
+  </Warning>
+</ParamField>
+
+<ParamField path="AGENT_ADDRESS" type="address" required>
+  Ethereum address of the agent that will control the PolicyVault
+  
+  This address can call `withdraw()` to spend funds within policy limits.
+</ParamField>
+
+<ParamField path="CHAIN_RPC_URL" type="string" default="https://sepolia.base.org">
+  RPC endpoint for Base Sepolia network
+  
+  You can use a public endpoint or your own Alchemy/Infura URL.
+</ParamField>
+
+<ParamField path="CHAIN_ID" type="number" default="84532">
+  Chain ID for Base Sepolia testnet
+</ParamField>
+
+<ParamField path="USDC_ADDRESS" type="address" default="0x036CbD53842c5426634e7929541eC2318f3dCF7e">
+  USDC token contract address on Base Sepolia
+  
+  Used by the Escrow contract for payments.
+</ParamField>
+
+<ParamField path="DAILY_LIMIT" type="string" default="50">
+  Daily spending limit for PolicyVault in ETH
+  
+  - Can be specified as a whole number (e.g., `50`) or decimal (e.g., `10.5`)
+  - Values are parsed to 18 decimals internally
+  - Example: `50` = 50 ETH daily limit
+</ParamField>
+
+## Deployment Process
+
+Run the deployment script:
+
+```bash
+node backend/scripts/deploy-base-sepolia-contracts.mjs
+```
+
+### What Happens During Deployment
+
+<Steps>
+  <Step title="Network Verification">
+    Script connects to Base Sepolia RPC and verifies chain ID matches 84532
+  </Step>
+  
+  <Step title="Compile Contracts">
+    Contracts are compiled using solc compiler:
+    - `PolicyVault.sol`
+    - `Escrow.sol`
+    - `AgentRegistry.sol`
+  </Step>
+  
+  <Step title="Deploy Contracts">
+    Contracts are deployed in sequence with nonce management:
+    
+    1. **PolicyVault** - Initialized with `AGENT_ADDRESS` and `DAILY_LIMIT`
+    2. **Escrow** - Initialized with `USDC_ADDRESS`
+    3. **AgentRegistry** - No constructor arguments
+  </Step>
+  
+  <Step title="Link Contracts">
+    Cross-contract connections are established:
+    
+    - PolicyVault: Add Escrow to allowlist
+    - AgentRegistry: Set Escrow contract address
+    - Escrow: Set AgentRegistry address
+  </Step>
+  
+  <Step title="Output Deployment Info">
+    Deployment addresses are logged to console:
+    
+    ```json
+    {
+      "chainId": "84532",
+      "deployer": "0x...",
+      "policyVault": "0x...",
+      "escrow": "0x...",
+      "agentRegistry": "0x..."
+    }
+    ```
+  </Step>
+</Steps>
+
+## Deployment Script Details
+
+The deployment script (`backend/scripts/deploy-base-sepolia-contracts.mjs`) performs several key functions:
+
+### Compiler Configuration
+
+```javascript
+settings: {
+  optimizer: {
+    enabled: false,
+    runs: 200,
+  },
+  outputSelection: {
+    '*': {
+      '*': ['abi', 'evm.bytecode.object'],
+    },
+  },
+}
+```
+
+### Constructor Arguments
+
+<CodeGroup>
+```javascript PolicyVault
+await deployContract('PolicyVault', compiled.PolicyVault, signer, [
+  AGENT_ADDRESS,  // Agent wallet address
+  DAILY_LIMIT,    // Daily spending limit (18 decimals)
+], nextNonce);
+```
+
+```javascript Escrow
+await deployContract('Escrow', compiled.Escrow, signer, [
+  USDC_BASE_SEPOLIA  // USDC token address
+], nextNonce);
+```
+
+```javascript AgentRegistry
+await deployContract('AgentRegistry', compiled.AgentRegistry, signer, [], nextNonce);
+```
+</CodeGroup>
+
+### Contract Linking
+
+After deployment, contracts are linked together:
+
+```javascript
+// Allow Escrow to receive funds from PolicyVault
+await policyVault.setAllowlist(await escrow.getAddress(), true);
+
+// Connect AgentRegistry to Escrow for reputation tracking
+await agentRegistry.setEscrowContract(await escrow.getAddress());
+
+// Connect Escrow to AgentRegistry for task completion recording
+await escrow.setAgentRegistry(await agentRegistry.getAddress());
+```
+
+## Verification
+
+After deployment, verify the contracts on BaseScan:
+
+```bash
+# Install Foundry (if not already installed)
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+
+# Verify on BaseScan
+forge verify-contract <CONTRACT_ADDRESS> src/PolicyVault.sol:PolicyVault \
+  --chain-id 84532 \
+  --etherscan-api-key <BASESCAN_API_KEY> \
+  --constructor-args $(cast abi-encode "constructor(address,uint256)" <AGENT_ADDRESS> <DAILY_LIMIT>)
+```
+
+<Note>
+  Repeat the verification command for each contract (Escrow, AgentRegistry) with appropriate constructor arguments.
+</Note>
+
+## Troubleshooting
+
+### Insufficient Funds
+
+```
+Error: insufficient funds for gas
+```
+
+**Solution**: Fund your deployer wallet with Base Sepolia ETH from a faucet.
+
+### Invalid Agent Address
+
+```
+Error: Missing or invalid AGENT_ADDRESS in backend/.env
+```
+
+**Solution**: Ensure `AGENT_ADDRESS` is a valid Ethereum address with `0x` prefix.
+
+### Wrong Network
+
+```
+Warning: Expected chain ID 84532, got 1
+```
+
+**Solution**: Verify your RPC URL points to Base Sepolia, not Ethereum mainnet.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="AgentRegistry" icon="book" href="/contracts/agent-registry">
+    Register your agent service
+  </Card>
+  <Card title="Escrow" icon="lock" href="/contracts/escrow">
+    Create trustless payments
+  </Card>
+</CardGroup>

@@ -1,0 +1,330 @@
+---
+title: 'Admin Policy API'
+description: 'Manage agent policies: freeze agents, update spending limits, and configure allowlists'
+icon: 'shield'
+---
+
+## Authentication
+
+All policy endpoints require admin authentication via the `x-admin-key` header.
+
+```bash
+curl -H "x-admin-key: your-admin-key" https://api.example.com/admin/policy
+```
+
+<Warning>
+  Admin endpoints use a dedicated rate limiter: **30 requests per minute per IP**.
+</Warning>
+
+---
+
+## Get All Agent Policies
+
+<RequestExample>
+```bash GET /admin/policy
+curl -X GET https://api.example.com/admin/policy \
+  -H "x-admin-key: your-admin-key"
+```
+</RequestExample>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "policies": [
+    {
+      "agentId": "oracle",
+      "frozen": false,
+      "dailyLimitUsd": 1.0,
+      "perCallLimitUsd": 0.05,
+      "allowedEndpoints": ["/api/x402/oracle/"],
+      "allowedPayTo": ["0x1234..."],
+      "updatedAt": "2026-03-03T10:30:00.000Z",
+      "updatedBy": "admin@example.com"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+**Response Fields**
+
+<ResponseField name="success" type="boolean" required>
+  Whether the request succeeded
+</ResponseField>
+
+<ResponseField name="policies" type="array" required>
+  Array of agent policy objects
+  
+  <Expandable title="Policy Object">
+    <ResponseField name="agentId" type="string">
+      Agent identifier (oracle, scout, news, yield, tokenomics, nft, perp)
+    </ResponseField>
+    
+    <ResponseField name="frozen" type="boolean">
+      If true, agent is frozen and cannot accept requests
+    </ResponseField>
+    
+    <ResponseField name="dailyLimitUsd" type="number">
+      Maximum USD that can be spent on this agent per day
+    </ResponseField>
+    
+    <ResponseField name="perCallLimitUsd" type="number">
+      Maximum USD that can be spent per individual call
+    </ResponseField>
+    
+    <ResponseField name="allowedEndpoints" type="string[]">
+      Endpoint path prefixes that are allowed for this agent
+    </ResponseField>
+    
+    <ResponseField name="allowedPayTo" type="string[]">
+      Allowlisted payment recipient addresses
+    </ResponseField>
+    
+    <ResponseField name="updatedAt" type="string">
+      ISO 8601 timestamp of last policy update
+    </ResponseField>
+    
+    <ResponseField name="updatedBy" type="string">
+      Admin user who last updated the policy
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## Get Single Agent Policy
+
+<RequestExample>
+```bash GET /admin/policy/:agentId
+curl -X GET https://api.example.com/admin/policy/oracle \
+  -H "x-admin-key: your-admin-key"
+```
+</RequestExample>
+
+**Path Parameters**
+
+<ParamField path="agentId" type="string" required>
+  Agent ID (oracle, scout, news, yield, tokenomics, nft, perp)
+</ParamField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "policy": {
+    "agentId": "oracle",
+    "frozen": false,
+    "dailyLimitUsd": 1.0,
+    "perCallLimitUsd": 0.05,
+    "allowedEndpoints": ["/api/x402/oracle/"],
+    "allowedPayTo": ["0x1234..."],
+    "updatedAt": "2026-03-03T10:30:00.000Z",
+    "updatedBy": "admin@example.com"
+  }
+}
+```
+</ResponseExample>
+
+---
+
+## Freeze/Unfreeze Agent
+
+<RequestExample>
+```bash POST /admin/policy/:agentId/freeze
+curl -X POST https://api.example.com/admin/policy/oracle/freeze \
+  -H "x-admin-key: your-admin-key" \
+  -H "x-admin-user: admin@example.com" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "frozen": true
+  }'
+```
+</RequestExample>
+
+**Path Parameters**
+
+<ParamField path="agentId" type="string" required>
+  Agent ID to freeze/unfreeze
+</ParamField>
+
+**Headers**
+
+<ParamField header="x-admin-key" type="string" required>
+  Admin API key for authentication
+</ParamField>
+
+<ParamField header="x-admin-user" type="string">
+  Optional admin user identifier for audit logging
+</ParamField>
+
+**Request Body**
+
+<ParamField body="frozen" type="boolean" required>
+  Set to `true` to freeze the agent, `false` to unfreeze
+</ParamField>
+
+<ParamField body="updatedBy" type="string">
+  Optional admin identifier (alternative to x-admin-user header)
+</ParamField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "policy": {
+    "agentId": "oracle",
+    "frozen": true,
+    "dailyLimitUsd": 1.0,
+    "perCallLimitUsd": 0.05,
+    "allowedEndpoints": ["/api/x402/oracle/"],
+    "allowedPayTo": ["0x1234..."],
+    "updatedAt": "2026-03-03T10:35:00.000Z",
+    "updatedBy": "admin@example.com"
+  }
+}
+```
+</ResponseExample>
+
+<Note>
+  When an agent is frozen, all incoming requests return HTTP 423 (Locked) with the message "{agentId} is frozen by policy".
+</Note>
+
+---
+
+## Update Agent Policy
+
+<RequestExample>
+```bash PATCH /admin/policy/:agentId
+curl -X PATCH https://api.example.com/admin/policy/oracle \
+  -H "x-admin-key: your-admin-key" \
+  -H "x-admin-user: admin@example.com" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "dailyLimitUsd": 5.0,
+    "perCallLimitUsd": 0.1,
+    "allowedEndpoints": ["/api/x402/oracle/price", "/api/x402/oracle/prices"],
+    "allowedPayTo": ["0x1234...", "0x5678..."]
+  }'
+```
+</RequestExample>
+
+**Path Parameters**
+
+<ParamField path="agentId" type="string" required>
+  Agent ID to update
+</ParamField>
+
+**Headers**
+
+<ParamField header="x-admin-key" type="string" required>
+  Admin API key
+</ParamField>
+
+<ParamField header="x-admin-user" type="string">
+  Optional admin user for audit trail
+</ParamField>
+
+**Request Body**
+
+All fields are optional. Only include fields you want to update.
+
+<ParamField body="frozen" type="boolean">
+  Freeze or unfreeze the agent
+</ParamField>
+
+<ParamField body="dailyLimitUsd" type="number">
+  Maximum daily spend limit in USD. Must be >= 0.
+</ParamField>
+
+<ParamField body="perCallLimitUsd" type="number">
+  Maximum per-call spend limit in USD. Must be >= 0.
+</ParamField>
+
+<ParamField body="allowedEndpoints" type="string[]">
+  Array of allowed endpoint path prefixes. Empty array blocks all endpoints.
+</ParamField>
+
+<ParamField body="allowedPayTo" type="string[]">
+  Array of allowed payment recipient addresses (case-insensitive).
+</ParamField>
+
+<ParamField body="updatedBy" type="string">
+  Admin identifier for audit logging (alternative to header)
+</ParamField>
+
+<ResponseExample>
+```json
+{
+  "success": true,
+  "policy": {
+    "agentId": "oracle",
+    "frozen": false,
+    "dailyLimitUsd": 5.0,
+    "perCallLimitUsd": 0.1,
+    "allowedEndpoints": ["/api/x402/oracle/price", "/api/x402/oracle/prices"],
+    "allowedPayTo": ["0x1234...", "0x5678..."],
+    "updatedAt": "2026-03-03T10:40:00.000Z",
+    "updatedBy": "admin@example.com"
+  }
+}
+```
+</ResponseExample>
+
+---
+
+## Error Responses
+
+<ResponseExample>
+```json 401 Unauthorized
+{
+  "success": false,
+  "error": "Unauthorized"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json 400 Bad Request
+{
+  "success": false,
+  "error": "Unsupported agentId: invalid-agent"
+}
+```
+</ResponseExample>
+
+<ResponseExample>
+```json 500 Internal Server Error
+{
+  "success": false,
+  "error": "Database connection failed"
+}
+```
+</ResponseExample>
+
+---
+
+## Policy Enforcement
+
+Policies are enforced in the following order:
+
+1. **Frozen check** - If agent is frozen, return 423 immediately
+2. **Endpoint allowlist** - Request path must match an allowed prefix
+3. **Per-call limit** - Quoted price must not exceed perCallLimitUsd
+4. **PayTo allowlist** - Payment recipient must be in allowedPayTo array
+5. **Daily limit** - Total daily spend + reserved budget must not exceed dailyLimitUsd
+
+<Warning>
+  Policy updates take effect immediately. Frozen agents will reject all in-flight requests.
+</Warning>
+
+## Default Policies
+
+When an agent is first initialized, it receives these default values:
+
+- **frozen**: `false`
+- **dailyLimitUsd**: `1.0` (from `X402_POLICY_DAILY_LIMIT_USD` env var)
+- **perCallLimitUsd**: `0.05` (from `X402_POLICY_PER_CALL_LIMIT_USD` env var)
+- **allowedEndpoints**: Agent-specific route prefixes (e.g., `/api/x402/oracle/`)
+- **allowedPayTo**: Agent's seller address from configuration
+- **updatedBy**: `"system-default"`

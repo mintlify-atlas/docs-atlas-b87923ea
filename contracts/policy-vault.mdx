@@ -1,0 +1,563 @@
+---
+title: PolicyVault Contract
+description: Agent treasury with automated spending policies and daily limits
+---
+
+The `PolicyVault` contract provides a secure treasury for AI agents with onchain spending policies, daily limits, allowlists, and emergency controls.
+
+## Contract Overview
+
+**Location**: `src/PolicyVault.sol:13`
+
+**Purpose**: Agent treasury management with automated policy enforcement
+
+**Asset Type**: Native ETH (Base Sepolia)
+
+**Security**: ReentrancyGuard, daily limits, allowlists, freeze mechanism
+
+## State Variables
+
+<ResponseField name="owner" type="address">
+  Contract owner with administrative privileges
+</ResponseField>
+
+<ResponseField name="agent" type="address">
+  Authorized agent wallet that can withdraw funds
+</ResponseField>
+
+<ResponseField name="frozen" type="bool">
+  Emergency freeze flag (kills all withdrawals when true)
+</ResponseField>
+
+<ResponseField name="dailyLimit" type="uint256">
+  Maximum spending allowed per day (in wei)
+</ResponseField>
+
+<ResponseField name="spentToday" type="uint256">
+  Amount spent in current day period (in wei)
+</ResponseField>
+
+<ResponseField name="lastResetDay" type="uint256">
+  Day counter for daily limit resets (block.timestamp / 1 days)
+</ResponseField>
+
+<ResponseField name="allowlist" type="mapping(address => bool)">
+  Addresses approved to receive withdrawals
+</ResponseField>
+
+## Functions
+
+### Withdraw Funds
+
+Agent withdraws native ETH within policy limits.
+
+```solidity
+function withdraw(address to, uint256 amount) 
+    external onlyAgent notFrozen nonReentrant
+```
+
+<ParamField path="to" type="address" required>
+  Recipient address (must be allowlisted and non-zero)
+</ParamField>
+
+<ParamField path="amount" type="uint256" required>
+  Amount of native ETH to transfer (in wei)
+</ParamField>
+
+**Access Control**: Only callable by the configured agent address
+
+**Policy Checks**:
+1. Vault must not be frozen
+2. Recipient must be allowlisted
+3. Amount must not exceed remaining daily limit
+
+**Daily Limit Logic**:
+- Resets automatically at midnight UTC (every 86400 seconds)
+- Tracks cumulative spending across multiple withdrawals
+- Prevents exceeding `dailyLimit` in any 24-hour period
+
+**Events Emitted**:
+```solidity
+event Withdrawal(address indexed to, uint256 amount);
+```
+
+**Errors**:
+- `OnlyAgent()` - Caller is not the authorized agent
+- `VaultFrozen()` - Vault is frozen
+- `ZeroAddress()` - Recipient is zero address
+- `NotAllowlisted()` - Recipient not on allowlist
+- `ExceedsDailyLimit()` - Would exceed daily spending limit
+- `TransferFailed()` - ETH transfer failed
+
+**Example**:
+```javascript
+// Agent withdraws 1 ETH to escrow contract
+const tx = await policyVault.withdraw(
+  ESCROW_ADDRESS,
+  ethers.parseEther("1")
+);
+await tx.wait();
+
+console.log("Withdrawal successful");
+```
+
+<Warning>
+  Daily limit resets are based on UTC days (block.timestamp / 86400). The counter increments at midnight UTC, not from the time of first withdrawal.
+</Warning>
+
+### Deposit Funds
+
+Anyone can deposit native ETH to the vault.
+
+```solidity
+receive() external payable
+```
+
+**Events Emitted**:
+```solidity
+event Deposit(address indexed from, uint256 amount);
+```
+
+**Example**:
+```javascript
+// Send ETH to vault
+const tx = await signer.sendTransaction({
+  to: POLICY_VAULT_ADDRESS,
+  value: ethers.parseEther("10")
+});
+await tx.wait();
+```
+
+## Owner Functions
+
+### Set Daily Limit
+
+Update the daily spending limit.
+
+```solidity
+function setDailyLimit(uint256 _limit) external onlyOwner
+```
+
+<ParamField path="_limit" type="uint256" required>
+  New daily limit in wei
+  
+  Example: `ethers.parseEther("100")` = 100 ETH per day
+</ParamField>
+
+**Events Emitted**:
+```solidity
+event PolicyUpdated(uint256 newDailyLimit);
+```
+
+**Example**:
+```javascript
+// Set daily limit to 50 ETH
+await policyVault.setDailyLimit(ethers.parseEther("50"));
+```
+
+### Set Allowlist
+
+Add or remove addresses from the allowlist.
+
+```solidity
+function setAllowlist(address _target, bool _allowed) external onlyOwner
+```
+
+<ParamField path="_target" type="address" required>
+  Address to add or remove from allowlist
+</ParamField>
+
+<ParamField path="_allowed" type="bool" required>
+  `true` to allow, `false` to deny
+</ParamField>
+
+**Events Emitted**:
+```solidity
+event AllowlistUpdated(address indexed target, bool allowed);
+```
+
+**Errors**:
+- `ZeroAddress()` - Target is zero address
+
+**Example**:
+```javascript
+// Allow escrow contract to receive funds
+await policyVault.setAllowlist(ESCROW_ADDRESS, true);
+
+// Remove address from allowlist
+await policyVault.setAllowlist(OLD_ESCROW_ADDRESS, false);
+```
+
+### Set Frozen Status
+
+Freeze or unfreeze the vault (emergency kill switch).
+
+```solidity
+function setFrozen(bool _frozen) external onlyOwner
+```
+
+<ParamField path="_frozen" type="bool" required>
+  `true` to freeze, `false` to unfreeze
+</ParamField>
+
+**Events Emitted**:
+```solidity
+event Frozen(bool status);
+```
+
+**Example**:
+```javascript
+// Emergency freeze
+await policyVault.setFrozen(true);
+
+// Resume operations
+await policyVault.setFrozen(false);
+```
+
+<Warning>
+  When frozen, the agent cannot withdraw ANY funds, even within daily limits. Use this as an emergency kill switch.
+</Warning>
+
+### Set Agent Address
+
+Update the authorized agent wallet.
+
+```solidity
+function setAgent(address _agent) external onlyOwner
+```
+
+<ParamField path="_agent" type="address" required>
+  New agent wallet address
+</ParamField>
+
+**Events Emitted**:
+```solidity
+event AgentUpdated(address indexed newAgent);
+```
+
+**Errors**:
+- `ZeroAddress()` - Agent is zero address
+
+### Transfer Ownership
+
+Transfer contract ownership to a new address.
+
+```solidity
+function transferOwnership(address newOwner) external onlyOwner
+```
+
+<ParamField path="newOwner" type="address" required>
+  New owner address
+</ParamField>
+
+**Events Emitted**:
+```solidity
+event OwnershipTransferred(
+    address indexed oldOwner,
+    address indexed newOwner
+);
+```
+
+**Errors**:
+- `ZeroAddress()` - New owner is zero address
+
+### Emergency Withdraw
+
+Owner-only emergency withdrawal bypassing daily limits.
+
+```solidity
+function emergencyWithdraw(address to, uint256 amount) 
+    external onlyOwner nonReentrant
+```
+
+<ParamField path="to" type="address" required>
+  Recipient address (no allowlist check)
+</ParamField>
+
+<ParamField path="amount" type="uint256" required>
+  Amount to withdraw in wei
+</ParamField>
+
+**Events Emitted**:
+```solidity
+event EmergencyWithdrawal(address indexed to, uint256 amount);
+```
+
+**Errors**:
+- `ZeroAddress()` - Recipient is zero address
+- `TransferFailed()` - ETH transfer failed
+
+<Warning>
+  **Use Only in Emergencies**: This function bypasses daily limits but NOT the freeze check. If the vault is frozen, even emergency withdrawals will fail.
+</Warning>
+
+**Example**:
+```javascript
+// Emergency withdrawal to recover stuck funds
+await policyVault.emergencyWithdraw(
+  ownerAddress,
+  ethers.parseEther("100")
+);
+```
+
+## View Functions
+
+### Get Balance
+
+```solidity
+function getBalance() external view returns (uint256)
+```
+
+Returns the current ETH balance of the vault in wei.
+
+### Get Remaining Daily Limit
+
+```solidity
+function getRemainingDaily() external view returns (uint256)
+```
+
+Returns the remaining spending allowance for the current day in wei.
+
+**Logic**:
+- If current day > lastResetDay: returns full `dailyLimit`
+- Otherwise: returns `dailyLimit - spentToday` (or 0 if exceeded)
+
+**Example**:
+```javascript
+const remaining = await policyVault.getRemainingDaily();
+console.log(`Remaining today: ${ethers.formatEther(remaining)} ETH`);
+```
+
+## Events
+
+<ResponseField name="Deposit">
+  ```solidity
+  event Deposit(address indexed from, uint256 amount);
+  ```
+  Emitted when ETH is deposited to the vault.
+</ResponseField>
+
+<ResponseField name="Withdrawal">
+  ```solidity
+  event Withdrawal(address indexed to, uint256 amount);
+  ```
+  Emitted when agent withdraws funds.
+</ResponseField>
+
+<ResponseField name="PolicyUpdated">
+  ```solidity
+  event PolicyUpdated(uint256 newDailyLimit);
+  ```
+  Emitted when daily limit is updated.
+</ResponseField>
+
+<ResponseField name="AllowlistUpdated">
+  ```solidity
+  event AllowlistUpdated(address indexed target, bool allowed);
+  ```
+  Emitted when allowlist is modified.
+</ResponseField>
+
+<ResponseField name="Frozen">
+  ```solidity
+  event Frozen(bool status);
+  ```
+  Emitted when vault freeze status changes.
+</ResponseField>
+
+<ResponseField name="AgentUpdated">
+  ```solidity
+  event AgentUpdated(address indexed newAgent);
+  ```
+  Emitted when agent address is updated.
+</ResponseField>
+
+<ResponseField name="EmergencyWithdrawal">
+  ```solidity
+  event EmergencyWithdrawal(address indexed to, uint256 amount);
+  ```
+  Emitted during emergency withdrawals.
+</ResponseField>
+
+<ResponseField name="OwnershipTransferred">
+  ```solidity
+  event OwnershipTransferred(
+      address indexed oldOwner,
+      address indexed newOwner
+  );
+  ```
+  Emitted when ownership is transferred.
+</ResponseField>
+
+## Errors
+
+<ResponseField name="OnlyOwner">
+  Function restricted to contract owner.
+</ResponseField>
+
+<ResponseField name="OnlyAgent">
+  Function restricted to authorized agent.
+</ResponseField>
+
+<ResponseField name="VaultFrozen">
+  Vault is frozen, withdrawals disabled.
+</ResponseField>
+
+<ResponseField name="ExceedsDailyLimit">
+  Withdrawal would exceed daily spending limit.
+</ResponseField>
+
+<ResponseField name="NotAllowlisted">
+  Recipient address not on allowlist.
+</ResponseField>
+
+<ResponseField name="TransferFailed">
+  ETH transfer failed.
+</ResponseField>
+
+<ResponseField name="ZeroAddress">
+  Invalid zero address provided.
+</ResponseField>
+
+## Usage Example
+
+<CodeGroup>
+```javascript Setup Vault
+import { ethers } from 'ethers';
+
+const policyVault = new ethers.Contract(
+  POLICY_VAULT_ADDRESS,
+  POLICY_VAULT_ABI,
+  signer
+);
+
+// 1. Set daily limit to 100 ETH
+await policyVault.setDailyLimit(ethers.parseEther("100"));
+
+// 2. Add escrow contract to allowlist
+await policyVault.setAllowlist(ESCROW_ADDRESS, true);
+
+// 3. Fund the vault
+await signer.sendTransaction({
+  to: POLICY_VAULT_ADDRESS,
+  value: ethers.parseEther("500")
+});
+
+console.log("Vault configured and funded");
+```
+
+```javascript Agent Withdrawal
+// Connect as agent
+const agentVault = policyVault.connect(agentSigner);
+
+// Check remaining daily limit
+const remaining = await agentVault.getRemainingDaily();
+console.log(`Can spend: ${ethers.formatEther(remaining)} ETH`);
+
+// Withdraw to escrow
+const amount = ethers.parseEther("5");
+await agentVault.withdraw(ESCROW_ADDRESS, amount);
+
+console.log("Withdrawal successful");
+```
+
+```javascript Monitor Activity
+// Listen for deposits
+policyVault.on("Deposit", (from, amount, event) => {
+  console.log(`Deposit: ${ethers.formatEther(amount)} ETH from ${from}`);
+});
+
+// Listen for withdrawals
+policyVault.on("Withdrawal", (to, amount, event) => {
+  console.log(`Withdrawal: ${ethers.formatEther(amount)} ETH to ${to}`);
+});
+
+// Check if frozen
+policyVault.on("Frozen", (status, event) => {
+  console.log(`Vault ${status ? 'FROZEN' : 'UNFROZEN'}`);
+});
+```
+
+```javascript Daily Limit Tracking
+// Get vault state
+const dailyLimit = await policyVault.dailyLimit();
+const spentToday = await policyVault.spentToday();
+const remaining = await policyVault.getRemainingDaily();
+
+console.log(`Daily limit: ${ethers.formatEther(dailyLimit)} ETH`);
+console.log(`Spent today: ${ethers.formatEther(spentToday)} ETH`);
+console.log(`Remaining: ${ethers.formatEther(remaining)} ETH`);
+
+// Calculate reset time
+const lastResetDay = await policyVault.lastResetDay();
+const nextResetTimestamp = (lastResetDay.toBigInt() + 1n) * 86400n;
+const nextReset = new Date(Number(nextResetTimestamp) * 1000);
+console.log(`Resets at: ${nextReset.toUTCString()}`);
+```
+</CodeGroup>
+
+## Security Considerations
+
+<Warning>
+  **Reentrancy Protection**: The `withdraw()` and `emergencyWithdraw()` functions use the `nonReentrant` modifier and CEI pattern to prevent reentrancy attacks.
+</Warning>
+
+<Note>
+  **Daily Limit Resets**: Limits reset based on UTC day boundaries (block.timestamp / 86400), not rolling 24-hour windows. Plan agent spending accordingly.
+</Note>
+
+<Warning>
+  **Allowlist Requirement**: The agent can ONLY withdraw to allowlisted addresses. Ensure the escrow contract and any other necessary addresses are added before the agent operates.
+</Warning>
+
+## Integration with Escrow
+
+The PolicyVault is designed to work seamlessly with the Escrow contract:
+
+1. **Owner adds Escrow to allowlist**: `setAllowlist(escrowAddress, true)`
+2. **Agent creates escrow**: Agent calls `escrow.createEscrow()` from their wallet
+3. **PolicyVault funds escrow**: Agent withdraws from vault to escrow contract
+4. **Escrow releases to seller**: After task completion
+
+This creates a trustless flow where:
+- Agent can only spend within daily limits
+- Agent can only send to approved contracts (escrow)
+- Owner retains emergency controls
+
+## Constructor Parameters
+
+When deploying, the contract is initialized with:
+
+```solidity
+constructor(address _agent, uint256 _dailyLimit)
+```
+
+<ParamField path="_agent" type="address" required>
+  Agent wallet address authorized to withdraw
+</ParamField>
+
+<ParamField path="_dailyLimit" type="uint256" required>
+  Initial daily spending limit in wei
+  
+  Example from deployment script: `ethers.parseEther("50")`
+</ParamField>
+
+**Deployment Example**:
+```javascript
+const factory = new ethers.ContractFactory(abi, bytecode, signer);
+const policyVault = await factory.deploy(
+  agentAddress,
+  ethers.parseEther("50") // 50 ETH daily limit
+);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Deployment Guide" icon="rocket" href="/contracts/deployment">
+    Deploy contracts to Base Sepolia
+  </Card>
+  <Card title="Escrow Contract" icon="lock" href="/contracts/escrow">
+    Integrate with escrow payments
+  </Card>
+</CardGroup>

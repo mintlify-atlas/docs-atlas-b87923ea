@@ -1,0 +1,279 @@
+---
+title: 'NFT Scout Agent'
+description: 'NFT collection analytics, floor prices, and sales trends from OpenSea'
+---
+
+The NFT Scout Agent provides real-time NFT collection analytics powered by OpenSea API v2.
+
+## Pricing
+
+Each request costs **$0.02 USD** (paid via x402 on Base Sepolia testnet).
+
+---
+
+## Analyze Collection
+
+Get comprehensive analytics for an NFT collection including floor price, volume, owners, and recent sales.
+
+```bash GET /api/x402/scout/nft/:slug
+curl https://api.arcana.markets/api/x402/scout/nft/boredapeyachtclub \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Path Parameters
+
+<ParamField path="slug" type="string" required>
+  OpenSea collection slug (e.g., `boredapeyachtclub`, `pudgypenguins`, `azuki`)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request succeeded
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  <ResponseField name="slug" type="string">
+    Collection slug
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    Collection name
+  </ResponseField>
+  
+  <ResponseField name="description" type="string">
+    Collection description
+  </ResponseField>
+  
+  <ResponseField name="floor_price" type="number">
+    Current floor price
+  </ResponseField>
+  
+  <ResponseField name="floor_price_symbol" type="string">
+    Floor price currency (usually "ETH")
+  </ResponseField>
+  
+  <ResponseField name="volume_total" type="number">
+    All-time trading volume
+  </ResponseField>
+  
+  <ResponseField name="num_owners" type="number">
+    Number of unique owners
+  </ResponseField>
+  
+  <ResponseField name="market_cap" type="number">
+    Market capitalization
+  </ResponseField>
+  
+  <ResponseField name="image_url" type="string">
+    Collection image URL
+  </ResponseField>
+  
+  <ResponseField name="opensea_url" type="string">
+    Direct link to OpenSea collection page
+  </ResponseField>
+  
+  <ResponseField name="sales_trend" type="string">
+    Recent sales trend: `up`, `down`, or `neutral`
+  </ResponseField>
+  
+  <ResponseField name="recent_sales" type="array">
+    Last 10 sales
+    
+    <ResponseField name="nft_name" type="string">
+      NFT name or token ID
+    </ResponseField>
+    
+    <ResponseField name="price" type="number">
+      Sale price
+    </ResponseField>
+    
+    <ResponseField name="symbol" type="string">
+      Payment token symbol
+    </ResponseField>
+    
+    <ResponseField name="date" type="string">
+      ISO 8601 sale timestamp
+    </ResponseField>
+    
+    <ResponseField name="tx_hash" type="string">
+      Transaction hash
+    </ResponseField>
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="payment" type="object">
+  x402 payment receipt
+</ResponseField>
+
+<CodeGroup>
+
+```json Response Example
+{
+  "success": true,
+  "data": {
+    "slug": "boredapeyachtclub",
+    "name": "Bored Ape Yacht Club",
+    "description": "The Bored Ape Yacht Club is a collection of 10,000 unique Bored Ape NFTs...",
+    "floor_price": 28.5,
+    "floor_price_symbol": "ETH",
+    "volume_total": 1245832.7,
+    "num_owners": 5847,
+    "market_cap": 285000,
+    "image_url": "https://i.seadn.io/gae/Ju9CkWtV-1Okvf45wo8UctR-M9He2PjILP0oOvxE89AyiPPGtrR3gysu1Zgy0hjd2xKIgjJJtWIc0ybj4Vd7wv8t3pxDGHoJBzDB?w=500",
+    "opensea_url": "https://opensea.io/collection/boredapeyachtclub",
+    "sales_trend": "up",
+    "recent_sales": [
+      {
+        "nft_name": "Bored Ape #4253",
+        "price": 29.2,
+        "symbol": "ETH",
+        "date": "2026-03-03T11:45:00.000Z",
+        "tx_hash": "0xabc123..."
+      },
+      {
+        "nft_name": "Bored Ape #8471",
+        "price": 28.8,
+        "symbol": "ETH",
+        "date": "2026-03-03T10:30:00.000Z",
+        "tx_hash": "0xdef456..."
+      }
+    ]
+  },
+  "payment": { /* x402 receipt */ }
+}
+```
+
+</CodeGroup>
+
+---
+
+## Search Collections
+
+Find NFT collections by keyword or name.
+
+```bash GET /api/x402/scout/search
+curl "https://api.arcana.markets/api/x402/scout/search?q=pudgy" \
+  -H "Authorization: Bearer YOUR_X402_TOKEN"
+```
+
+### Query Parameters
+
+<ParamField query="q" type="string" required>
+  Search query (collection name or keyword)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Whether the request succeeded
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  Array of search results
+  
+  <ResponseField name="collection" type="string">
+    Collection ID
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    Collection display name
+  </ResponseField>
+  
+  <ResponseField name="slug" type="string">
+    Collection slug (use this for analyze endpoint)
+  </ResponseField>
+  
+  <ResponseField name="image_url" type="string">
+    Collection thumbnail
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="payment" type="object">
+  x402 payment receipt
+</ResponseField>
+
+<CodeGroup>
+
+```json Response Example
+{
+  "success": true,
+  "data": [
+    {
+      "collection": "pudgypenguins",
+      "name": "Pudgy Penguins",
+      "slug": "pudgypenguins",
+      "image_url": "https://i.seadn.io/gae/..."
+    },
+    {
+      "collection": "lil-pudgys",
+      "name": "Lil Pudgys",
+      "slug": "lil-pudgys",
+      "image_url": "https://i.seadn.io/gae/..."
+    }
+  ],
+  "payment": { /* x402 receipt */ }
+}
+```
+
+</CodeGroup>
+
+---
+
+## Sales Trend Calculation
+
+The `sales_trend` field is calculated by comparing recent sales:
+
+- **Up**: Average of last 3 sales is 5%+ higher than previous 7 sales
+- **Down**: Average of last 3 sales is 5%+ lower than previous 7 sales
+- **Neutral**: Less than 5% difference
+
+<Note>
+Trend requires at least 5 recent sales. Collections with fewer sales will show "neutral".
+</Note>
+
+---
+
+## Popular Collections
+
+Some popular collection slugs to try:
+
+- `boredapeyachtclub` - Bored Ape Yacht Club
+- `pudgypenguins` - Pudgy Penguins
+- `azuki` - Azuki
+- `cryptopunks` - CryptoPunks
+- `doodles-official` - Doodles
+- `clonex` - RTFKT CloneX
+- `meebits` - Meebits
+- `moonbirds` - Moonbirds
+- `otherdeed` - Otherside Metaverse
+
+---
+
+## Fallback Slug Discovery
+
+If the OpenSea Search API fails, the NFT Scout automatically tries slug variations:
+
+1. Remove spaces: `pudgy penguins` → `pudgypenguins`
+2. Hyphenated: `pudgy penguins` → `pudgy-penguins`
+3. Direct check: Validates by fetching collection stats
+
+This ensures high success rate even when search is unavailable.
+
+---
+
+## x402 Payment Flow
+
+All NFT Scout endpoints require payment via x402:
+
+- **Price**: $0.02 per request (2x oracle price due to OpenSea API costs)
+- **Network**: Base Sepolia (eip155:84532)
+- **Seller Address**: `0xEb6d935822e643Af37ec7C6a7Bd6136c0036Cd69`
+
+### Data Caching
+
+Collection stats are cached for 5 minutes to reduce API load and improve response times.
+
+<Note>
+Requires valid OpenSea API key. Service returns 403 error if API key is not configured.
+</Note>

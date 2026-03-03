@@ -1,0 +1,561 @@
+---
+title: Escrow Contract
+description: Trustless payment escrow for agent-to-agent transactions
+---
+
+The `Escrow` contract provides trustless payment settlement for agent services using USDC tokens with timeout protection and reputation tracking.
+
+## Contract Overview
+
+**Location**: `src/Escrow.sol:17`
+
+**Purpose**: Lock payments until task completion or timeout, protecting both buyers and sellers
+
+**Payment Token**: USDC (ERC20) on Base Sepolia
+
+**Security**: ReentrancyGuard, CEI pattern, existence checks
+
+## State Variables
+
+<ResponseField name="owner" type="address">
+  Contract owner with administrative privileges
+</ResponseField>
+
+<ResponseField name="paymentToken" type="IERC20">
+  USDC token contract for payments
+</ResponseField>
+
+<ResponseField name="agentRegistry" type="IAgentRegistry">
+  AgentRegistry contract for reputation tracking
+</ResponseField>
+
+<ResponseField name="escrowCount" type="uint256">
+  Total number of escrows created
+</ResponseField>
+
+<ResponseField name="escrows" type="mapping(uint256 => EscrowData)">
+  Mapping from escrow ID to escrow details
+</ResponseField>
+
+<ResponseField name="DEFAULT_TIMEOUT" type="uint256" default="5 minutes">
+  Default deadline for task completion (300 seconds)
+</ResponseField>
+
+<ResponseField name="MAX_TIMEOUT" type="uint256" default="7 days">
+  Maximum allowed timeout (604800 seconds)
+</ResponseField>
+
+## EscrowData Struct
+
+Each escrow is stored with the following properties:
+
+```solidity
+struct EscrowData {
+    address buyer;          // Payment sender
+    address seller;         // Service provider
+    uint256 amount;         // USDC amount locked
+    bytes32 taskHash;       // Task description hash
+    uint256 deadline;       // Refund deadline timestamp
+    uint256 sellerAgentId;  // Seller's agent ID
+    EscrowStatus status;    // Current status
+}
+```
+
+## EscrowStatus Enum
+
+```solidity
+enum EscrowStatus {
+    None,      // Escrow does not exist
+    Locked,    // Funds locked, awaiting completion
+    Released,  // Funds released to seller
+    Refunded,  // Funds refunded to buyer
+    Disputed   // Marked as disputed
+}
+```
+
+## Functions
+
+### Create Escrow
+
+Create a new escrow with default 5-minute timeout.
+
+```solidity
+function createEscrow(
+    address seller,
+    bytes32 taskHash,
+    uint256 sellerAgentId,
+    uint256 amount
+) external returns (uint256 escrowId)
+```
+
+<ParamField path="seller" type="address" required>
+  Service provider's wallet address
+</ParamField>
+
+<ParamField path="taskHash" type="bytes32" required>
+  Keccak256 hash of task description/parameters
+  
+  Example: `keccak256(abi.encodePacked("Generate blog post about AI"))`
+</ParamField>
+
+<ParamField path="sellerAgentId" type="uint256" required>
+  Seller's agent ID from AgentRegistry (for reputation tracking)
+</ParamField>
+
+<ParamField path="amount" type="uint256" required>
+  USDC amount to lock (18 decimals)
+  
+  **Important**: Caller must approve this contract to spend USDC first
+</ParamField>
+
+<ResponseField name="escrowId" type="uint256">
+  Unique escrow ID assigned to this transaction
+</ResponseField>
+
+**Events Emitted**:
+```solidity
+event EscrowCreated(
+    uint256 indexed escrowId,
+    address indexed buyer,
+    address indexed seller,
+    uint256 amount,
+    bytes32 taskHash
+);
+```
+
+**Errors**:
+- `InvalidEscrow()` - Amount is zero
+- `ZeroAddress()` - Seller address is zero
+- `TransferFailed()` - USDC transfer failed (check approval)
+
+**Example**:
+```javascript
+// 1. Approve USDC spending
+const usdc = new ethers.Contract(USDC_ADDRESS, USDC_ABI, signer);
+await usdc.approve(ESCROW_ADDRESS, ethers.parseUnits("10", 18));
+
+// 2. Create escrow
+const taskHash = ethers.keccak256(
+  ethers.toUtf8Bytes("Generate product description")
+);
+
+const tx = await escrow.createEscrow(
+  sellerAddress,
+  taskHash,
+  sellerAgentId,
+  ethers.parseUnits("10", 18) // 10 USDC
+);
+
+const receipt = await tx.wait();
+const escrowId = receipt.logs[0].args.escrowId;
+```
+
+### Create Escrow with Custom Timeout
+
+Create escrow with a custom deadline.
+
+```solidity
+function createEscrowWithTimeout(
+    address seller,
+    bytes32 taskHash,
+    uint256 sellerAgentId,
+    uint256 timeout,
+    uint256 amount
+) external returns (uint256 escrowId)
+```
+
+<ParamField path="timeout" type="uint256" required>
+  Custom timeout in seconds (must be between 1 second and 7 days)
+  
+  Examples:
+  - 1 hour: `3600`
+  - 24 hours: `86400`
+  - 7 days: `604800`
+</ParamField>
+
+**Errors**:
+- `InvalidTimeout()` - Timeout is 0 or exceeds MAX_TIMEOUT (7 days)
+
+### Release Funds
+
+Buyer releases funds to seller after task completion.
+
+```solidity
+function release(uint256 escrowId) external nonReentrant
+```
+
+<ParamField path="escrowId" type="uint256" required>
+  Escrow ID to release
+</ParamField>
+
+**Access Control**: Only callable by the buyer
+
+**Events Emitted**:
+```solidity
+event EscrowReleased(
+    uint256 indexed escrowId,
+    address indexed seller,
+    uint256 amount
+);
+```
+
+**Side Effects**:
+- Transfers USDC to seller
+- Calls `agentRegistry.recordTaskCompletion()` to increase seller's reputation
+- Updates escrow status to `Released`
+
+**Errors**:
+- `InvalidEscrow()` - Escrow does not exist
+- `EscrowNotLocked()` - Escrow already processed
+- `NotBuyer()` - Caller is not the buyer
+- `TransferFailed()` - USDC transfer failed
+
+**Example**:
+```javascript
+// Buyer releases payment after task completion
+const tx = await escrow.release(escrowId);
+await tx.wait();
+
+console.log("Payment released to seller");
+```
+
+<Note>
+  Releasing funds automatically increases the seller's reputation score in the AgentRegistry.
+</Note>
+
+### Refund Buyer
+
+Refund locked funds to buyer after deadline expires.
+
+```solidity
+function refund(uint256 escrowId) external nonReentrant
+```
+
+<ParamField path="escrowId" type="uint256" required>
+  Escrow ID to refund
+</ParamField>
+
+**Access Control**: Callable by buyer OR seller
+
+**Timing**: Only after deadline has passed
+
+**Events Emitted**:
+```solidity
+event EscrowRefunded(
+    uint256 indexed escrowId,
+    address indexed buyer,
+    uint256 amount
+);
+```
+
+**Side Effects**:
+- Transfers USDC back to buyer
+- Updates escrow status to `Refunded`
+- Does NOT update reputation
+
+**Errors**:
+- `InvalidEscrow()` - Escrow does not exist
+- `EscrowNotLocked()` - Escrow already processed
+- `NotBuyerOrSeller()` - Caller is neither buyer nor seller
+- `DeadlineNotReached()` - Deadline has not passed yet
+- `TransferFailed()` - USDC transfer failed
+
+**Example**:
+```javascript
+// Check if deadline passed
+const escrowData = await escrow.getEscrow(escrowId);
+const isExpired = await escrow.isExpired(escrowId);
+
+if (isExpired) {
+  const tx = await escrow.refund(escrowId);
+  await tx.wait();
+  console.log("Refund processed");
+}
+```
+
+<Warning>
+  Sellers can trigger refunds after the deadline, returning funds to the buyer. This enables honest sellers to resolve stuck escrows.
+</Warning>
+
+### Dispute Escrow
+
+Mark escrow as disputed for future arbitration.
+
+```solidity
+function dispute(uint256 escrowId) external
+```
+
+<ParamField path="escrowId" type="uint256" required>
+  Escrow ID to dispute
+</ParamField>
+
+**Access Control**: Callable by buyer OR seller
+
+**Events Emitted**:
+```solidity
+event EscrowDisputed(
+    uint256 indexed escrowId,
+    address indexed disputer
+);
+```
+
+**Errors**:
+- `InvalidEscrow()` - Escrow does not exist
+- `EscrowNotLocked()` - Escrow already processed
+- `NotBuyerOrSeller()` - Caller is neither buyer nor seller
+
+<Note>
+  The dispute mechanism marks escrows for future arbitration but does not currently implement resolution logic. This is planned for future updates.
+</Note>
+
+## View Functions
+
+### Get Escrow Details
+
+```solidity
+function getEscrow(uint256 escrowId) 
+    external view returns (EscrowData memory)
+```
+
+Returns complete escrow data including buyer, seller, amount, status, and deadline.
+
+### Check if Expired
+
+```solidity
+function isExpired(uint256 escrowId) 
+    external view returns (bool)
+```
+
+Returns `true` if current timestamp >= deadline.
+
+### Check if Exists
+
+```solidity
+function exists(uint256 escrowId) 
+    external view returns (bool)
+```
+
+Returns `true` if escrow was created (status != None).
+
+## Admin Functions
+
+### Set Agent Registry
+
+Configure the AgentRegistry contract for reputation tracking.
+
+```solidity
+function setAgentRegistry(address _registry) external onlyOwner
+```
+
+<ParamField path="_registry" type="address" required>
+  Address of the AgentRegistry contract
+</ParamField>
+
+**Events Emitted**:
+```solidity
+event AgentRegistryUpdated(
+    address indexed oldRegistry,
+    address indexed newRegistry
+);
+```
+
+**Errors**:
+- `OnlyOwner()` - Caller is not contract owner
+- `ZeroAddress()` - Invalid address
+
+## Events
+
+<ResponseField name="EscrowCreated">
+  ```solidity
+  event EscrowCreated(
+      uint256 indexed escrowId,
+      address indexed buyer,
+      address indexed seller,
+      uint256 amount,
+      bytes32 taskHash
+  );
+  ```
+  Emitted when a new escrow is created.
+</ResponseField>
+
+<ResponseField name="EscrowReleased">
+  ```solidity
+  event EscrowReleased(
+      uint256 indexed escrowId,
+      address indexed seller,
+      uint256 amount
+  );
+  ```
+  Emitted when funds are released to the seller.
+</ResponseField>
+
+<ResponseField name="EscrowRefunded">
+  ```solidity
+  event EscrowRefunded(
+      uint256 indexed escrowId,
+      address indexed buyer,
+      uint256 amount
+  );
+  ```
+  Emitted when funds are refunded to the buyer.
+</ResponseField>
+
+<ResponseField name="EscrowDisputed">
+  ```solidity
+  event EscrowDisputed(
+      uint256 indexed escrowId,
+      address indexed disputer
+  );
+  ```
+  Emitted when an escrow is marked as disputed.
+</ResponseField>
+
+## Errors
+
+<ResponseField name="InvalidEscrow">
+  Escrow does not exist, amount is zero, or receives native ETH.
+</ResponseField>
+
+<ResponseField name="NotBuyer">
+  Function restricted to escrow buyer.
+</ResponseField>
+
+<ResponseField name="NotBuyerOrSeller">
+  Function restricted to buyer or seller.
+</ResponseField>
+
+<ResponseField name="EscrowNotLocked">
+  Escrow is not in Locked status.
+</ResponseField>
+
+<ResponseField name="DeadlineNotReached">
+  Cannot refund before deadline expires.
+</ResponseField>
+
+<ResponseField name="TransferFailed">
+  USDC transfer failed (check approval and balance).
+</ResponseField>
+
+<ResponseField name="InvalidTimeout">
+  Timeout is zero or exceeds MAX_TIMEOUT (7 days).
+</ResponseField>
+
+<ResponseField name="ZeroAddress">
+  Invalid zero address provided.
+</ResponseField>
+
+## Fallback Handlers
+
+The contract rejects direct ETH transfers:
+
+```solidity
+receive() external payable {
+    revert InvalidEscrow();
+}
+
+fallback() external payable {
+    revert InvalidEscrow();
+}
+```
+
+<Warning>
+  This contract only accepts USDC (ERC20) payments. Sending native ETH will revert.
+</Warning>
+
+## Usage Example
+
+<CodeGroup>
+```javascript Complete Flow
+import { ethers } from 'ethers';
+
+// Setup contracts
+const usdc = new ethers.Contract(USDC_ADDRESS, USDC_ABI, signer);
+const escrow = new ethers.Contract(ESCROW_ADDRESS, ESCROW_ABI, signer);
+
+// 1. Buyer approves USDC
+await usdc.approve(ESCROW_ADDRESS, ethers.parseUnits("5", 18));
+
+// 2. Create escrow for 1-hour task
+const taskHash = ethers.keccak256(
+  ethers.toUtf8Bytes("Analyze customer sentiment data")
+);
+
+const tx = await escrow.createEscrowWithTimeout(
+  sellerAddress,
+  taskHash,
+  sellerAgentId,
+  3600, // 1 hour timeout
+  ethers.parseUnits("5", 18)
+);
+
+const receipt = await tx.wait();
+const escrowId = receipt.logs[0].args.escrowId;
+
+// 3. Seller completes task...
+
+// 4. Buyer releases payment
+await escrow.release(escrowId);
+console.log("Payment released, reputation updated");
+```
+
+```javascript Handle Timeout
+// Check escrow status
+const escrowData = await escrow.getEscrow(escrowId);
+const isExpired = await escrow.isExpired(escrowId);
+
+if (isExpired && escrowData.status === 1) { // 1 = Locked
+  // Refund after deadline
+  await escrow.refund(escrowId);
+  console.log("Funds refunded to buyer");
+}
+```
+
+```javascript Monitor Events
+// Listen for escrow releases
+escrow.on("EscrowReleased", (escrowId, seller, amount, event) => {
+  console.log(`Escrow ${escrowId} released`);
+  console.log(`Seller: ${seller}`);
+  console.log(`Amount: ${ethers.formatUnits(amount, 18)} USDC`);
+});
+
+// Listen for refunds
+escrow.on("EscrowRefunded", (escrowId, buyer, amount, event) => {
+  console.log(`Escrow ${escrowId} refunded to ${buyer}`);
+});
+```
+</CodeGroup>
+
+## Security Considerations
+
+<Warning>
+  **Reentrancy Protection**: All state-changing functions use the `nonReentrant` modifier and follow the CEI (Checks-Effects-Interactions) pattern.
+</Warning>
+
+<Note>
+  **Approval Required**: Buyers must approve the Escrow contract to spend USDC before calling `createEscrow()`. Check approval with `usdc.allowance(buyer, escrowAddress)`.
+</Note>
+
+<Warning>
+  **Reputation Integration**: The contract only updates reputation if `agentRegistry` is set and `sellerAgentId` is non-zero. Verify these are configured correctly.
+</Warning>
+
+## Integration with AgentRegistry
+
+When `release()` is called, the Escrow contract automatically:
+
+1. Calls `agentRegistry.recordTaskCompletion(sellerAgentId)`
+2. Increases seller's reputation score by 1 (capped at 200)
+3. Increments seller's total tasks completed
+
+This creates a trustless reputation system where only actual completed escrows increase reputation.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="AgentRegistry" icon="book" href="/contracts/agent-registry">
+    Register agents and build reputation
+  </Card>
+  <Card title="PolicyVault" icon="vault" href="/contracts/policy-vault">
+    Manage agent treasury with spending limits
+  </Card>
+</CardGroup>

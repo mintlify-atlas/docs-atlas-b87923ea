@@ -1,0 +1,320 @@
+---
+title: Smart Contract Deployment
+description: Deploy PolicyVault, Escrow, and AgentRegistry contracts to Base Sepolia
+icon: rocket
+---
+
+## Overview
+
+The Arcana x402 Agent Marketplace uses three core smart contracts deployed on Base Sepolia:
+
+- **PolicyVault** - Manages agent spending policies and daily limits
+- **Escrow** - Handles USDC payment escrow for user queries
+- **AgentRegistry** - Registers agents and links to the escrow system
+
+This guide covers deploying these contracts using the included Node.js deployment script.
+
+## Prerequisites
+
+Before deploying contracts, ensure you have:
+
+<Note>
+  - **Base Sepolia ETH** for gas fees (get from [Base Sepolia faucet](https://www.coinbase.com/faucets/base-ethereum-sepolia-faucet))
+  - **Private key** of wallet with ETH
+  - **Agent wallet address** to set as the authorized agent
+  - Node.js 18+ installed
+</Note>
+
+## Deployment Script
+
+The repository includes a Node.js deployment script at:
+
+```
+backend/scripts/deploy-base-sepolia-contracts.mjs
+```
+
+This script:
+
+1. Compiles Solidity contracts using `solc`
+2. Deploys PolicyVault, Escrow, and AgentRegistry
+3. Links contracts together (sets allowlists and references)
+4. Outputs deployed addresses for your `.env` file
+
+## Configuration
+
+<Steps>
+  <Step title="Set required environment variables">
+    Edit `backend/.env` and set these required variables:
+    
+    ```env
+    PRIVATE_KEY=0x...              # Deployer wallet private key
+    AGENT_ADDRESS=0x...            # Agent wallet address
+    ```
+    
+    <Warning>
+      The `PRIVATE_KEY` wallet must have Base Sepolia ETH for gas. Never commit private keys to version control.
+    </Warning>
+  </Step>
+
+  <Step title="Set optional configuration">
+    These variables have defaults but can be customized:
+    
+    ```env
+    CHAIN_RPC_URL=https://sepolia.base.org
+    CHAIN_ID=84532
+    USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
+    DAILY_LIMIT=50
+    ```
+    
+    **DAILY_LIMIT** can be:
+    - A whole number (e.g., `50`) - interpreted as Wei
+    - A decimal (e.g., `50.0`) - parsed as Ether units
+  </Step>
+</Steps>
+
+## Running the Deployment
+
+<Steps>
+  <Step title="Navigate to backend directory">
+    ```bash
+    cd backend
+    ```
+  </Step>
+
+  <Step title="Run the deployment script">
+    ```bash
+    node scripts/deploy-base-sepolia-contracts.mjs
+    ```
+    
+    The script will output deployment progress:
+    
+    ```
+    [Config] RPC URL: https://sepolia.base.org
+    [Config] Chain ID: 84532
+    [Config] Deployer: 0x...
+    [Config] Deployer balance: 0.05 ETH
+    [Config] Starting nonce: 123
+    [Deploy] PolicyVault tx: 0x...
+    [Deploy] PolicyVault address: 0x...
+    [Deploy] Escrow tx: 0x...
+    [Deploy] Escrow address: 0x...
+    [Deploy] AgentRegistry tx: 0x...
+    [Deploy] AgentRegistry address: 0x...
+    [Config] Linking contracts...
+    [Config] Link complete
+    ```
+  </Step>
+
+  <Step title="Save deployed addresses">
+    The script outputs a JSON result with all deployed addresses:
+    
+    ```json
+    {
+      "chainId": "84532",
+      "deployer": "0x...",
+      "policyVault": "0x...",
+      "escrow": "0x...",
+      "agentRegistry": "0x..."
+    }
+    ```
+    
+    Copy these addresses to your `backend/.env`:
+    
+    ```env
+    POLICY_VAULT_ADDRESS=0x...
+    ESCROW_ADDRESS=0x...
+    AGENT_REGISTRY_ADDRESS=0x...
+    ```
+  </Step>
+
+  <Step title="Verify on BaseScan">
+    Visit [BaseScan Sepolia](https://sepolia.basescan.org) and search for your contract addresses to verify deployment.
+  </Step>
+</Steps>
+
+## Contract Details
+
+### PolicyVault
+
+**Purpose:** Manages per-agent spending policies and daily limits.
+
+**Constructor Parameters:**
+- `agentAddress` - The wallet address authorized as an agent
+- `dailyLimit` - Maximum spending per day (in Wei or Ether units)
+
+**Key Functions:**
+- `setAllowlist(address, bool)` - Authorize/revoke addresses (e.g., Escrow contract)
+- `checkLimit(address, uint256)` - Verify if spending is within daily limit
+
+### Escrow
+
+**Purpose:** Holds USDC payments from users until query completion.
+
+**Constructor Parameters:**
+- `usdcAddress` - USDC token contract address on Base Sepolia
+
+**Key Functions:**
+- `deposit(uint256 amount)` - User deposits USDC into escrow
+- `release(address to, uint256 amount)` - Release funds to recipient
+- `setAgentRegistry(address)` - Link to AgentRegistry contract
+
+### AgentRegistry
+
+**Purpose:** Registers agents and maintains escrow linkage.
+
+**Key Functions:**
+- `setEscrowContract(address)` - Link to Escrow contract
+- `registerAgent(...)` - Register new agent (if implemented)
+
+## Contract Linking
+
+The deployment script automatically links contracts:
+
+```javascript
+// Allow Escrow to interact with PolicyVault
+await policyVault.setAllowlist(escrowAddress, true)
+
+// Link AgentRegistry to Escrow
+await agentRegistry.setEscrowContract(escrowAddress)
+
+// Link Escrow to AgentRegistry
+await escrow.setAgentRegistry(agentRegistryAddress)
+```
+
+<Note>
+  Contract linking is essential for the system to function. The deployment script handles this automatically.
+</Note>
+
+## Foundry Alternative
+
+If you prefer Foundry for deployment, the repository includes Foundry configuration:
+
+```
+foundry.toml         # Foundry config
+src/                 # Solidity contracts
+script/              # Foundry scripts
+test/                # Foundry tests
+```
+
+To use Foundry:
+
+<CodeGroup>
+```bash Install Foundry
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+```
+
+```bash Build Contracts
+forge build
+```
+
+```bash Run Tests
+forge test
+```
+
+```bash Deploy (example)
+forge script script/Deploy.s.sol:DeployScript \
+  --rpc-url https://sepolia.base.org \
+  --private-key $PRIVATE_KEY \
+  --broadcast
+```
+</CodeGroup>
+
+## Verification on BaseScan
+
+To verify your contracts on BaseScan Sepolia:
+
+<Steps>
+  <Step title="Get BaseScan API key">
+    Sign up at [BaseScan](https://basescan.org/apis) and create an API key.
+  </Step>
+
+  <Step title="Use Foundry verification (if using Foundry)">
+    ```bash
+    forge verify-contract \
+      --chain-id 84532 \
+      --compiler-version v0.8.20 \
+      <CONTRACT_ADDRESS> \
+      src/PolicyVault.sol:PolicyVault \
+      --etherscan-api-key <YOUR_BASESCAN_API_KEY>
+    ```
+  </Step>
+
+  <Step title="Or manually verify on BaseScan">
+    1. Go to your contract on BaseScan
+    2. Click "Contract" → "Verify and Publish"
+    3. Select compiler version and settings
+    4. Paste flattened source code
+    5. Submit for verification
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Insufficient funds for gas
+
+**Error:** `insufficient funds for gas * price + value`
+
+**Solution:** Add more Base Sepolia ETH to your deployer wallet.
+
+### Invalid AGENT_ADDRESS
+
+**Error:** `Missing or invalid AGENT_ADDRESS`
+
+**Solution:** Ensure `AGENT_ADDRESS` in `.env` is a valid Ethereum address starting with `0x`.
+
+### Wrong chain ID
+
+**Warning:** `Expected chain ID 84532, got 1`
+
+**Solution:** Verify `CHAIN_RPC_URL` points to Base Sepolia (`https://sepolia.base.org`).
+
+### Compilation errors
+
+**Error:** `Solidity compile error: ...`
+
+**Solution:** Ensure Solidity contracts in `src/` are valid and match the expected version (^0.8.20).
+
+### Nonce too low
+
+**Error:** `nonce has already been used`
+
+**Solution:** The script manages nonces automatically. If you see this error, wait a few seconds and retry, or clear pending transactions from your wallet.
+
+## Post-Deployment
+
+After successful deployment:
+
+1. **Update `.env`** with contract addresses
+2. **Restart backend** to load new configuration
+3. **Test deposits** through the frontend
+4. **Verify transactions** on BaseScan
+5. **Monitor gas costs** for optimization
+
+## Security Considerations
+
+<Warning>
+  - **Never commit private keys** to version control
+  - **Use separate wallets** for deployment vs. operations
+  - **Set appropriate daily limits** to prevent excessive spending
+  - **Audit contracts** before mainnet deployment
+  - **Implement access controls** for production environments
+</Warning>
+
+## Production Hardening
+
+Before deploying to production (mainnet):
+
+1. **Audit smart contracts** with a professional security firm
+2. **Test thoroughly** on testnet with realistic scenarios
+3. **Implement multi-sig** for contract ownership
+4. **Set conservative limits** initially
+5. **Monitor contract activity** with alerts
+6. **Prepare upgrade path** if using proxy patterns
+7. **Document emergency procedures**
+
+## Next Steps
+
+- Complete your [Environment Variables](/setup/environment-variables) configuration
+- Start [Local Development](/setup/local-development) with deployed contracts
+- Review the [Architecture Overview](/concepts/architecture) to understand contract interactions

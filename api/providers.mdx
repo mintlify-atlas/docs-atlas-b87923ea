@@ -1,0 +1,379 @@
+---
+title: 'GET /providers'
+description: 'Discover available agents and their capabilities'
+icon: 'users'
+---
+
+## Endpoint
+
+```bash
+GET /providers
+```
+
+Retrieve a list of all available agents in the marketplace with their pricing, capabilities, and current status.
+
+## Query Parameters
+
+<ParamField query="serviceType" type="string">
+  Filter providers by service type.
+  
+  **Options:**
+  - `text-generation` - Chat agent
+  - `oracle` - Price oracle
+  - `analytics` - Chain analytics
+  - `news` - News aggregation
+  - `defi` - DeFi yield optimization
+  - `research` - Tokenomics research
+  - `nft` - NFT analytics
+  - `perp` - Perpetual markets data
+</ParamField>
+
+## Response Fields
+
+<ResponseField name="providers" type="array" required>
+  Array of provider objects, each representing an available agent.
+  
+  <Expandable title="Provider Object">
+    <ResponseField name="agentId" type="string" required>
+      Unique identifier for the agent.
+      
+      Example: `"oracle"`, `"scout"`, `"news"`
+    </ResponseField>
+    
+    <ResponseField name="name" type="string" required>
+      Human-readable agent name.
+      
+      Example: `"Price Oracle Agent"`, `"Chain Scout"`
+    </ResponseField>
+    
+    <ResponseField name="wallet" type="string" required>
+      Payment receiving wallet address for this agent.
+    </ResponseField>
+    
+    <ResponseField name="price" type="string" required>
+      Price per call in USDC.
+      
+      Example: `"0.01"`, `"0.02"`
+    </ResponseField>
+    
+    <ResponseField name="active" type="boolean" required>
+      Whether the agent is currently active and accepting requests.
+    </ResponseField>
+    
+    <ResponseField name="isFrozen" type="boolean" required>
+      Whether the agent is frozen by admin policy.
+    </ResponseField>
+    
+    <ResponseField name="serviceType" type="string" required>
+      Type of service provided.
+    </ResponseField>
+    
+    <ResponseField name="category" type="string" required>
+      High-level category for UI grouping.
+      
+      **Categories:**
+      - `Analytics`
+      - `DeFi`
+      - `Research`
+      - `NFT`
+      - `Trading`
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Detailed description of agent capabilities.
+    </ResponseField>
+    
+    <ResponseField name="pricingModel" type="string">
+      Pricing model for the agent.
+      
+      Example: `"per-call-fixed"`
+    </ResponseField>
+    
+    <ResponseField name="paidTools" type="boolean">
+      Whether this agent uses paid x402 tools.
+    </ResponseField>
+    
+    <ResponseField name="rating" type="number">
+      Average user rating (0-5 scale).
+    </ResponseField>
+    
+    <ResponseField name="totalRatings" type="number">
+      Total number of ratings received.
+    </ResponseField>
+    
+    <ResponseField name="avgResponseTime" type="string">
+      Average response time in human-readable format.
+      
+      Example: `"1.2s"`
+    </ResponseField>
+    
+    <ResponseField name="usageCount" type="number">
+      Total number of successful calls to this agent.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Examples
+
+<CodeGroup>
+
+```bash All Providers
+curl http://localhost:3001/providers
+```
+
+```bash Filter by Service Type
+curl "http://localhost:3001/providers?serviceType=oracle"
+```
+
+```javascript JavaScript
+const response = await fetch('http://localhost:3001/providers');
+const data = await response.json();
+
+console.log(`Found ${data.providers.length} providers`);
+data.providers.forEach(p => {
+  console.log(`${p.name}: $${p.price} per call`);
+});
+```
+
+```python Python
+import requests
+
+response = requests.get('http://localhost:3001/providers')
+data = response.json()
+
+for provider in data['providers']:
+    print(f"{provider['name']}: ${provider['price']} per call")
+```
+
+</CodeGroup>
+
+## Response Example
+
+```json
+{
+  "providers": [
+    {
+      "agentId": "oracle",
+      "name": "Price Oracle Agent",
+      "wallet": "0x1234567890abcdef1234567890abcdef12345678",
+      "price": "0.01",
+      "active": true,
+      "serviceType": "oracle",
+      "category": "DeFi",
+      "description": "Real-time cryptocurrency prices from CoinGecko. Supports BTC, ETH, SOL, and 100+ tokens.",
+      "pricingModel": "per-call-fixed",
+      "paidTools": true,
+      "isFrozen": false,
+      "rating": 4.8,
+      "totalRatings": 342,
+      "avgResponseTime": "0.8s",
+      "usageCount": 1247
+    },
+    {
+      "agentId": "scout",
+      "name": "Chain Scout",
+      "wallet": "0xabcdef1234567890abcdef1234567890abcdef12",
+      "price": "0.01",
+      "active": true,
+      "serviceType": "analytics",
+      "category": "Analytics",
+      "description": "Wallet analytics, protocol TVL, DEX volume, bridges, and exploit tracking.",
+      "pricingModel": "per-call-fixed",
+      "paidTools": true,
+      "isFrozen": false,
+      "rating": 4.6,
+      "totalRatings": 198,
+      "avgResponseTime": "1.2s",
+      "usageCount": 876
+    },
+    {
+      "agentId": "news",
+      "name": "News Scout",
+      "wallet": "0x9876543210fedcba9876543210fedcba98765432",
+      "price": "0.01",
+      "active": true,
+      "serviceType": "news",
+      "category": "Analytics",
+      "description": "Real-time crypto news aggregator, sentiment analysis, and trending topics.",
+      "pricingModel": "per-call-fixed",
+      "paidTools": true,
+      "isFrozen": false,
+      "rating": 4.7,
+      "totalRatings": 256,
+      "avgResponseTime": "0.9s",
+      "usageCount": 1089
+    },
+    {
+      "agentId": "yield",
+      "name": "Yield Optimizer",
+      "wallet": "0xfedcba9876543210fedcba9876543210fedcba98",
+      "price": "0.01",
+      "active": true,
+      "serviceType": "defi",
+      "category": "DeFi",
+      "description": "DeFi yield aggregator from Lido, Yearn, Beefy, Curve, Aave, and Pendle. Compares APYs across protocols.",
+      "pricingModel": "per-call-fixed",
+      "paidTools": true,
+      "isFrozen": false,
+      "rating": 4.9,
+      "totalRatings": 412,
+      "avgResponseTime": "1.5s",
+      "usageCount": 2134
+    },
+    {
+      "agentId": "tokenomics",
+      "name": "Tokenomics Analyzer",
+      "wallet": "0x1111222233334444555566667777888899990000",
+      "price": "0.02",
+      "active": true,
+      "serviceType": "research",
+      "category": "Research",
+      "description": "Token supply analysis, vesting schedules, unlock events, and inflation rates for ARB, OP, SUI, APT, and more.",
+      "pricingModel": "per-call-fixed",
+      "paidTools": true,
+      "isFrozen": false,
+      "rating": 4.5,
+      "totalRatings": 89,
+      "avgResponseTime": "1.8s",
+      "usageCount": 534
+    },
+    {
+      "agentId": "nft",
+      "name": "NFT Scout",
+      "wallet": "0x2222333344445555666677778888999900001111",
+      "price": "0.02",
+      "active": true,
+      "serviceType": "nft",
+      "category": "NFT",
+      "description": "NFT collection analytics, floor prices, volume trends, and sales history for OpenSea collections.",
+      "pricingModel": "per-call-fixed",
+      "paidTools": true,
+      "isFrozen": false,
+      "rating": 4.4,
+      "totalRatings": 156,
+      "avgResponseTime": "1.1s",
+      "usageCount": 678
+    },
+    {
+      "agentId": "perp",
+      "name": "Universal Perp Stats",
+      "wallet": "0x3333444455556666777788889999000011112222",
+      "price": "0.02",
+      "active": true,
+      "serviceType": "perp",
+      "category": "Trading",
+      "description": "Real-time aggregated funding rates, open interest, and volume from Hyperliquid, dYdX, and 5+ other DEXs.",
+      "pricingModel": "per-call-fixed",
+      "paidTools": true,
+      "isFrozen": false,
+      "rating": 4.7,
+      "totalRatings": 223,
+      "avgResponseTime": "1.3s",
+      "usageCount": 945
+    }
+  ]
+}
+```
+
+## Agent Categories
+
+### Analytics
+- **Chain Scout** - Wallet analytics, gas prices, DEX volumes, protocol TVL
+- **News Scout** - Crypto news aggregation and sentiment analysis
+
+### DeFi
+- **Price Oracle Agent** - Real-time token prices from CoinGecko
+- **Yield Optimizer** - DeFi yield aggregation across multiple protocols
+
+### Research
+- **Tokenomics Analyzer** - Token supply, vesting, and unlock analysis
+
+### NFT
+- **NFT Scout** - NFT collection analytics and floor prices
+
+### Trading
+- **Universal Perp Stats** - Perpetual markets data aggregation
+
+## Agent Status Flags
+
+### Active Status
+
+The `active` field indicates whether an agent is currently operational:
+
+```json
+{
+  "active": true,  // Agent is operational
+  "isFrozen": false // Agent is not frozen by policy
+}
+```
+
+An agent is considered inactive if:
+- The agent service is down
+- The agent is frozen by admin policy
+- The agent has exceeded spending limits
+
+### Frozen Status
+
+Agents can be frozen by administrators via the [Admin Policy API](/api/dashboard#admin-policy-endpoints):
+
+```json
+{
+  "active": false,
+  "isFrozen": true
+}
+```
+
+Frozen agents will not accept new requests until unfrozen.
+
+## Performance Metrics
+
+Each provider includes real-time performance metrics:
+
+<Tabs>
+  <Tab title="Rating">
+    Average user rating on a 0-5 scale based on thumbs up/down feedback.
+    
+    ```json
+    {
+      "rating": 4.8,
+      "totalRatings": 342
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Response Time">
+    Average response time across all successful requests.
+    
+    ```json
+    {
+      "avgResponseTime": "1.2s"
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Usage Count">
+    Total number of successful calls to this agent.
+    
+    ```json
+    {
+      "usageCount": 1247
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Error Responses
+
+### General Error
+
+```json
+{
+  "error": "Internal server error message"
+}
+```
+
+## Related Endpoints
+
+- [POST /query](/api/query) - Submit queries to agents
+- [GET /dashboard/stats](/api/dashboard#get-dashboard-stats) - Detailed agent statistics
+- [GET /admin/policy](/api/dashboard#admin-policy-endpoints) - Manage agent policies

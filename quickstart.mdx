@@ -1,80 +1,325 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Make your first paid query on Arcana x402 in under 5 minutes
 ---
 
-## Get started in three steps
+## Get Started in 5 Minutes
 
-Get your documentation site running locally and make your first customization.
+This guide will walk you through making your first paid crypto intelligence query on Arcana x402.
 
-### Step 1: Set up your local environment
+<Note>
+  This quickstart assumes you already have MetaMask installed. If not, visit [metamask.io](https://metamask.io) first.
+</Note>
+
+## Step 1: Add Base Sepolia Network
+
+<Steps>
+  <Step title="Open MetaMask">
+    Click the MetaMask extension in your browser and ensure you're logged in.
+  </Step>
+  
+  <Step title="Add Network">
+    Click the network dropdown at the top and select **Add Network** → **Add a network manually**.
+  </Step>
+  
+  <Step title="Enter Network Details">
+    Fill in the Base Sepolia testnet information:
+    
+    - **Network Name**: Base Sepolia
+    - **RPC URL**: `https://sepolia.base.org`
+    - **Chain ID**: `84532`
+    - **Currency Symbol**: `ETH`
+    - **Block Explorer**: `https://sepolia.basescan.org`
+    
+    Click **Save** when done.
+  </Step>
+</Steps>
+
+<Note>
+  The platform will automatically prompt you to switch to Base Sepolia when making payments.
+</Note>
+
+## Step 2: Get Test ETH (Gas)
+
+You'll need Base Sepolia ETH to pay for transaction gas fees.
+
+<Steps>
+  <Step title="Visit Base Sepolia Faucet">
+    Navigate to a Base Sepolia faucet:
+    - [Base Sepolia Faucet](https://www.coinbase.com/faucets/base-ethereum-sepolia-faucet)
+    - [Alchemy Base Sepolia Faucet](https://sepoliafaucet.com/)
+  </Step>
+  
+  <Step title="Request Test ETH">
+    Enter your wallet address and complete any required verification (captcha, social login, etc.).
+    
+    You should receive **0.05-0.1 ETH** within a few minutes.
+  </Step>
+  
+  <Step title="Verify Balance">
+    Check your MetaMask to confirm the ETH arrived. Switch to Base Sepolia network to see the balance.
+  </Step>
+</Steps>
+
+## Step 3: Get Test USDC
+
+Queries cost $0.03 USDC each. You'll need Base Sepolia test USDC.
+
+<Steps>
+  <Step title="Get the USDC Contract Address">
+    Base Sepolia USDC address:
+    ```
+    0x036CbD53842c5426634e7929541eC2318f3dCF7e
+    ```
+  </Step>
+  
+  <Step title="Visit a Multi-Token Faucet">
+    Some options:
+    - [Circle Testnet Faucet](https://faucet.circle.com/) - Request USDC directly
+    - [Uniswap Testnet](https://app.uniswap.org/) - Swap test ETH for test USDC
+  </Step>
+  
+  <Step title="Import USDC to MetaMask">
+    In MetaMask:
+    1. Go to **Assets** tab
+    2. Scroll down and click **Import tokens**
+    3. Paste the USDC contract address: `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
+    4. Click **Add Custom Token**
+    
+    You should now see your USDC balance.
+  </Step>
+</Steps>
+
+<Warning>
+  Make sure you're on **Base Sepolia** network when importing the USDC token. The contract address is different on each network.
+</Warning>
+
+## Step 4: Connect to Arcana x402
+
+<Steps>
+  <Step title="Visit the Platform">
+    Open the Arcana x402 web interface at your deployment URL (e.g., `http://localhost:5173` for local development).
+  </Step>
+  
+  <Step title="Connect Wallet">
+    Click the **Connect Wallet** button in the top right corner.
+    
+    Select **MetaMask** and approve the connection request.
+  </Step>
+  
+  <Step title="Sign Verification Message">
+    You'll be prompted to sign a message to verify wallet ownership. This doesn't cost gas.
+    
+    Click **Sign** in the MetaMask popup.
+  </Step>
+  
+  <Step title="Verify Connection">
+    After signing, you should see:
+    - Your wallet address in the header
+    - Your ETH and USDC balances
+    - The chat input becomes enabled
+  </Step>
+</Steps>
+
+<Note>
+  The signature verification is cached for 24 hours. You won't need to sign again on every visit.
+</Note>
+
+## Step 5: Make Your First Query
+
+<Steps>
+  <Step title="Type Your Question">
+    In the chat input at the bottom, type a crypto question. Examples:
+    
+    - "What's the current price of Bitcoin?"
+    - "Show me top yield farming opportunities"
+    - "What's the floor price for Bored Ape Yacht Club?"
+    - "Give me the latest crypto news"
+  </Step>
+  
+  <Step title="Send Payment">
+    Click **Send** or press Enter.
+    
+    MetaMask will open asking you to approve a USDC transfer of $0.03:
+    - **Amount**: 0.03 USDC
+    - **To**: Provider Agent Address
+    - **Network**: Base Sepolia
+    
+    Review and click **Confirm**.
+  </Step>
+  
+  <Step title="Wait for Processing">
+    After the transaction confirms:
+    1. You'll see "Waiting for payment confirmation..."
+    2. The backend verifies your transaction on-chain
+    3. Gemini AI decides which agents to call
+    4. Agent responses are aggregated
+    5. Your answer appears in the chat
+    
+    This usually takes 5-15 seconds.
+  </Step>
+  
+  <Step title="Review Response">
+    The AI response will show:
+    - The answer to your question
+    - Which agents were used (e.g., "Price Oracle", "News Scout")
+    - Transaction hash for your payment
+  </Step>
+</Steps>
+
+## Example Query Flow
+
+Here's what happens behind the scenes:
+
+<CodeGroup>
+
+```typescript Frontend Payment
+// 1. User approves USDC transfer
+const txHash = await ethereum.request({
+  method: 'eth_sendTransaction',
+  params: [{
+    from: userAddress,
+    to: USDC_ADDRESS, // 0x036CbD...
+    data: encodeFunctionData({
+      functionName: 'transfer',
+      args: [PROVIDER_ADDRESS, parseUnits('0.03', 6)]
+    })
+  }]
+});
+
+// 2. Send query with transaction hash
+const response = await fetch('/query', {
+  method: 'POST',
+  body: JSON.stringify({
+    query: 'What is the price of Bitcoin?',
+    txHash,
+    userAddress
+  })
+});
+```
+
+```typescript Backend Verification
+// 3. Backend verifies payment on-chain
+const receipt = await publicClient.getTransactionReceipt({
+  hash: txHash
+});
+
+// Check USDC transfer to correct address
+if (receipt.to !== USDC_ADDRESS) {
+  throw new Error('Invalid payment token');
+}
+
+// 4. Orchestrate AI agents
+const result = await generateResponse(query, {
+  conversationHistory,
+  userAddress,
+  sessionId
+});
+```
+
+```typescript Agent Routing
+// 5. Gemini calls paid x402 agents
+const tools = [
+  {
+    name: 'get_token_price',
+    endpoint: '/api/x402/oracle/price',
+    price: 0.01
+  },
+  {
+    name: 'get_crypto_news',
+    endpoint: '/api/x402/news/latest',
+    price: 0.01
+  }
+];
+
+// x402 protocol: HTTP 402 -> pay -> retry
+const agentResponse = await payX402Service({
+  url: tool.endpoint,
+  maxAmountAtomic: parseUnits('0.01', 6)
+});
+```
+
+</CodeGroup>
+
+## Troubleshooting
 
 <AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
+  <Accordion title="MetaMask shows 'Insufficient funds'">
+    This means you don't have enough USDC or ETH:
+    - Check you have at least **0.03 USDC** for the query
+    - Check you have at least **0.001 ETH** for gas fees
+    - Make sure you're on **Base Sepolia** network
+    - Revisit Step 2 and Step 3 to get more test tokens
   </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
+
+  <Accordion title="Payment succeeded but no response">
+    If your payment was confirmed but you didn't get a response:
+    - Check the backend is running (`GET /health` should return 200)
+    - Verify `VITE_API_URL` in frontend `.env` matches backend URL
+    - Check browser console for errors
+    - Your $0.03 payment was recorded - contact support with your transaction hash
+  </Accordion>
+
+  <Accordion title="'Backend unavailable' error before payment">
+    The frontend checks if the backend is reachable before charging you:
+    - Confirm backend is running: `http://localhost:3001/health`
+    - Check `VITE_API_URL` environment variable
+    - Verify no firewall is blocking the connection
+    - If using local dev: make sure both frontend and backend are started
+  </Accordion>
+
+  <Accordion title="Wallet verification signature fails">
+    If the signature request is rejected:
+    - Try disconnecting and reconnecting your wallet
+    - Clear browser cache and localStorage
+    - Make sure you're using a supported browser (Chrome, Firefox, Brave)
+    - Check MetaMask is unlocked and on the correct network
+  </Accordion>
+
+  <Accordion title="Transaction stays pending">
+    If your transaction doesn't confirm:
+    - Base Sepolia testnet can be slow - wait 1-2 minutes
+    - Check [Base Sepolia Explorer](https://sepolia.basescan.org) with your tx hash
+    - Try increasing gas limit in MetaMask settings
+    - Ensure you have enough ETH for gas (at least 0.001 ETH)
   </Accordion>
 </AccordionGroup>
 
-### Step 2: Deploy your changes
+## Next Steps
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
+Now that you've made your first query:
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card
+    title="Explore Agents"
+    icon="robot"
+    href="/concepts/agent-marketplace"
+  >
+    Learn about all 7 specialized agents and their capabilities
+  </Card>
+  <Card
+    title="Dashboard"
+    icon="chart-line"
+    href="/api/dashboard"
+  >
+    View your query history, spending, and agent usage stats
+  </Card>
+  <Card
+    title="API Reference"
+    icon="code"
+    href="/api/overview"
+  >
+    Integrate Arcana x402 into your own applications
+  </Card>
+  <Card
+    title="Policy Controls"
+    icon="shield"
+    href="/guides/policy-controls"
+  >
+    Set spend limits, freeze agents, and configure allowlists
+  </Card>
 </CardGroup>
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Want to run your own instance? Check out the [Local Development Guide](/setup/local-development) for developers.
 </Note>
