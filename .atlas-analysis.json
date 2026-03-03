@@ -1,0 +1,143 @@
+{
+  "projectType": "saas",
+  "projectName": "Arcana (x402 Agent Marketplace)",
+  "projectDescription": "A full-stack crypto AI orchestration platform with paid agent queries, x402 payment protocol integration, and policy-controlled autonomous tool calls on Base Sepolia.",
+  "theme": "aspen",
+  "primaryColor": "#8B5CF6",
+  "lightColor": "#A78BFA",
+  "darkColor": "#6D28D9",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "prerequisites"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/architecture",
+              "concepts/x402-protocol",
+              "concepts/payment-flow",
+              "concepts/agent-marketplace"
+            ]
+          },
+          {
+            "group": "Setup & Deployment",
+            "pages": [
+              "setup/local-development",
+              "setup/environment-variables",
+              "setup/supabase-setup",
+              "setup/contract-deployment"
+            ]
+          },
+          {
+            "group": "User Guides",
+            "pages": [
+              "guides/making-queries",
+              "guides/agent-providers",
+              "guides/policy-controls",
+              "guides/treasury-management"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core APIs",
+            "pages": [
+              "api/overview",
+              "api/query",
+              "api/providers",
+              "api/dashboard"
+            ]
+          },
+          {
+            "group": "x402 Endpoints",
+            "pages": [
+              "api/x402/oracle",
+              "api/x402/scout",
+              "api/x402/news",
+              "api/x402/yield",
+              "api/x402/tokenomics",
+              "api/x402/nft",
+              "api/x402/perp"
+            ]
+          },
+          {
+            "group": "Admin & Policy",
+            "pages": [
+              "api/admin/policy",
+              "api/admin/treasury",
+              "api/admin/procurement"
+            ]
+          },
+          {
+            "group": "Chat & Ratings",
+            "pages": [
+              "api/chat",
+              "api/ratings"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Smart Contracts",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "contracts/overview",
+              "contracts/deployment"
+            ]
+          },
+          {
+            "group": "Contracts",
+            "pages": [
+              "contracts/agent-registry",
+              "contracts/escrow",
+              "contracts/policy-vault"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "x402 payment protocol integration for paid AI agent calls",
+    "Multi-agent marketplace with 7 specialist agents (Oracle, Scout, News, Yield, Tokenomics, NFT, Perp)",
+    "Pinion-powered procurement routing with provider scoring and fallback attempts",
+    "Policy controls: freeze/unfreeze agents, spend limits, allowlists, per-call caps",
+    "CDP wallet-based buyer/seller wallet management",
+    "Real-time dashboard with receipts, spend tracking, and activity logs",
+    "Smart contract system (AgentRegistry, Escrow, PolicyVault) on Base Sepolia",
+    "Gemini AI orchestration with automatic tool selection",
+    "Supabase-backed persistence for chats, ratings, and payment logs"
+  ],
+  "publicApiSurface": [
+    "POST /query - Submit paid queries with USDC payment verification",
+    "GET /providers - List all available agent providers with pricing",
+    "GET /dashboard/stats - Agent performance statistics and treasury balance",
+    "GET /dashboard/activity - Recent query activity and payment logs",
+    "GET /dashboard/spend - Session spend summary with receipts and trace",
+    "POST /x402/procurement/rank - Rank candidate x402 service providers",
+    "POST /x402/procurement/execute - Execute procurement with fallback routing",
+    "GET /treasury/balance/:address - Check wallet balance via Pinion",
+    "POST /treasury/send - Send USDC/ETH via Pinion",
+    "POST /treasury/trade - Token swap via Pinion",
+    "POST /admin/policy/:agentId/freeze - Freeze/unfreeze agent",
+    "PATCH /admin/policy/:agentId - Update policy limits",
+    "POST /chat/sessions - Create chat session",
+    "GET /chat/sessions/:sessionId/messages - Get chat history",
+    "POST /ratings - Rate agent response",
+    "GET /agent/rating - Get agent rating statistics"
+  ]
+}
